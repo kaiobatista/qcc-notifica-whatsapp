@@ -1,0 +1,6 @@
+.env
+auth_info
+pacientes.json
+npm-debug.log*
+.DS_Store
+node_modules/
