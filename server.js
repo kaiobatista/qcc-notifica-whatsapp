@@ -9,8 +9,8 @@ import { fileURLToPath } from 'url';
 import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import jwt from 'jsonwebtoken';
 import cron from 'node-cron';
-import { automatizarPesquisaLaudo } from './integracao.js'; //[cite: 2]
-import { analisarLaudos } from './analisar_laudos.js'; //[cite: 1]
+import { automatizarPesquisaLaudo } from './integracao.js'; 
+import { analisarLaudos } from './analisar_laudos.js'; 
 
 const app = express();
 app.use(express.json());
@@ -39,14 +39,29 @@ function criptografar(texto) {
 }
 
 function descriptografar(texto) {
-    if (!texto || !texto.includes(':')) return "";
-    const textParts = texto.split(':');
-    const iv = Buffer.from(textParts.shift(), 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', SECRET_KEY, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    // Se estiver vazio ou não for string, retorna vazio
+    if (!texto || typeof texto !== 'string') return "";
+    
+    // Regex que verifica se o formato é EXATAMENTE o da nossa criptografia 
+    // (32 letras/números hexadecimais + ':' + restante hexadecimal)
+    const regexCriptografia = /^[a-f0-9]{32}:[a-f0-9]+$/;
+    
+    if (!regexCriptografia.test(texto)) {
+        // Se não passar no teste rigoroso, significa que é um texto puro legado do banco antigo.
+        return texto; 
+    }
+
+    try {
+        const textParts = texto.split(':');
+        const iv = Buffer.from(textParts.shift(), 'hex');
+        const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', SECRET_KEY, iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return decrypted.toString();
+    } catch (e) {
+        return texto;
+    }
 }
 
 function descriptografarPaciente(paciente) {
@@ -56,7 +71,9 @@ function descriptografarPaciente(paciente) {
         numero: descriptografar(paciente.numero),
         nascimento: descriptografar(paciente.nascimento),
         cpf: descriptografar(paciente.cpf),
-        endereco: descriptografar(paciente.endereco)
+        endereco: descriptografar(paciente.endereco),
+        dataResultado: descriptografar(paciente.dataResultado) || '',
+        conclusao: descriptografar(paciente.conclusao) || 'Aguardando laudo...'
     };
 }
 
@@ -162,7 +179,6 @@ const verificarToken = (req, res, next) => {
 };
 
 // --- ROTAS DO SERVIDOR ---
-
 app.post('/login', (req, res) => {
     const { senha } = req.body;
     if (senha === process.env.SENHA_PAINEL) {
@@ -210,7 +226,8 @@ async function dispararMensagemPaciente(p) {
         numeroLimpo = '5577' + numeroLimpo;
     }
 
-    numeroLimpo = '5571991168815'
+    // Número configurado para teste de redirecionamento - Remova ou altere para produção
+    numeroLimpo = '5571991168815';
 
     if (numeroLimpo.length === 13) {
         const ddd = parseInt(numeroLimpo.substring(2, 4));
@@ -246,19 +263,19 @@ async function dispararMensagemPaciente(p) {
 
 // --- FLUXO COMPLETO DE INTEGRAÇÃO (SISCAN + IA + CADASTRO + WHATSAPP) ---
 async function executarFluxoCompletoSemanal() {
-    console.log('\n[⚙️ INTEGRAÇÃO] Iniciando varredura semanal no SISCAN...');
+    console.log('\n[⚙️ INTEGRAÇÃO] Iniciando varredura semanal no SISCAN (3 últimos meses)...');
 
-    // 1. Executa automação para baixar o PDF do SISCAN[cite: 2]
-    await automatizarPesquisaLaudo();
+    const nomeArquivoPdf = await automatizarPesquisaLaudo();
     
-    const mesAno = process.env.SISCAN_MES_ANO_INICIO || '07/2026';
-    const nomeArquivoPdf = `relatorio_laudos_${mesAno.replace('/', '_')}.pdf`;
-
-    if (!fs.existsSync(nomeArquivoPdf)) {
-        throw new Error(`O arquivo PDF '${nomeArquivoPdf}' não foi encontrado para análise.`);
+    if (!nomeArquivoPdf) {
+        console.log('[⚙️ INTEGRAÇÃO] A varredura foi concluída, mas nenhum laudo foi gerado.');
+        return [];
     }
 
-    // 2. Analisa o PDF utilizando a IA do Gemini para filtrar atipias[cite: 1]
+    if (!fs.existsSync(nomeArquivoPdf)) {
+        throw new Error(`O arquivo PDF '${nomeArquivoPdf}' não foi encontrado para análise após a execução.`);
+    }
+
     const pacientesAtipicos = await analisarLaudos(nomeArquivoPdf);
 
     if (!pacientesAtipicos || pacientesAtipicos.length === 0) {
@@ -268,17 +285,17 @@ async function executarFluxoCompletoSemanal() {
 
     const cadastrados = [];
 
-    // 3. Cadastra automaticamente os pacientes encontrados no banco local criptografado[cite: 3]
     for (const pacienteAI of pacientesAtipicos) {
         const novoRegistro = {
             id: Date.now() + Math.floor(Math.random() * 1000),
             nome: criptografar(pacienteAI.nome || 'Desconhecido'),
             numero: criptografar(pacienteAI.telefone || ''),
-            nascimento: criptografar(''), 
+            nascimento: criptografar(pacienteAI.nascimento || ''), 
             cpf: criptografar(pacienteAI.cartaoSUS || ''),
             endereco: criptografar(''),
             unidade: process.env.SISCAN_UNIDADE_PADRAO || 'USF Principal',
-            conclusao: pacienteAI.conclusao || '',
+            conclusao: criptografar(pacienteAI.conclusao || ''),
+            dataResultado: criptografar(pacienteAI.dataResultado || ''),
             status: "Pendente",
             dataCadastro: new Date().toLocaleString()
         };
@@ -290,7 +307,8 @@ async function executarFluxoCompletoSemanal() {
     salvarPacientes();
     console.log(`[⚙️ INTEGRAÇÃO] ${cadastrados.length} pacientes cadastrados com sucesso no sistema.`);
 
-    // 4. Dispara a mensagem via WhatsApp para os números cadastrados[cite: 3]
+    // O envio automático via WhatsApp está documentado para testes, descomente para ativar em massa.
+    /*
     for (const pacienteCadastrado of cadastrados) {
         try {
             await dispararMensagemPaciente(pacienteCadastrado);
@@ -298,6 +316,7 @@ async function executarFluxoCompletoSemanal() {
             console.error(`[❌ ERRO WHATSAPP] Falha ao enviar para o paciente ID ${pacienteCadastrado.id}:`, erroDisparo);
         }
     }
+    */
 
     return cadastrados;
 }
@@ -315,6 +334,19 @@ app.get('/sincronizar-ministerio', verificarToken, async (req, res) => {
     } catch (erro) {
         console.error("Falha ao sincronizar:", erro);
         res.status(500).json({ error: "O portal do Ministério está indisponível ou ocorreu um erro: " + (erro.message || erro) });
+    }
+});
+
+app.post('/enviar-notificacao/:id', verificarToken, async (req, res) => {
+    const p = pacientes.find(x => x.id == req.params.id);
+    if (!p) return res.status(404).json({ error: "Paciente não encontrado." });
+
+    try {
+        await dispararMensagemPaciente(p);
+        res.json({ status: "sucesso", message: "Pergunta de confirmação enviada." });
+    } catch (err) {
+        console.error("Erro no disparo:", err);
+        res.status(500).json({ error: "Falha ao enviar mensagem via WhatsApp." });
     }
 });
 
@@ -349,7 +381,7 @@ app.put('/editar-paciente/:id', verificarToken, (req, res) => {
 });
 
 // --- AGENDAMENTO SEMANAL (CRON) ---
-// Roda toda segunda-feira às 03:00 da manhã[cite: 3]
+// Roda toda segunda-feira às 03:00 da manhã
 cron.schedule('0 3 * * 1', async () => {
     console.log('\n[⚙️ CRON] Iniciando a varredura automática semanal no SISCAN...');
 

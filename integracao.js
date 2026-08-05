@@ -19,13 +19,19 @@ const clienteAxios = wrapper(axios.create({
 }));
 
 // --- FUNÇÕES UTILITÁRIAS ---
-
 function obterViewState(html) {
     return cheerio.load(html)('input[name="javax.faces.ViewState"]').first().val();
 }
 
-// --- MÓDULOS DA AUTOMAÇÃO ---
+function formatarData(data) {
+    return `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
+}
 
+function formatarMesAno(data) {
+    return `${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
+}
+
+// --- MÓDULOS DA AUTOMAÇÃO ---
 async function realizarLogin() {
     console.log('1. Acessando página de login...');
     const urlLogin = `${urlBase}/login.jsf`;
@@ -72,11 +78,14 @@ async function selecionarPerfil(viewStatePerfil, perfilIndex) {
 }
 
 // --- FUNÇÃO PRINCIPAL ---
-
 export async function automatizarPesquisaLaudo() {
     if (!process.env.SISCAN_EMAIL || !process.env.SISCAN_SENHA) {
         throw new Error('SISCAN_EMAIL e SISCAN_SENHA devem estar configurados no arquivo .env.');
     }
+
+    const dataFimObj = new Date();
+    const dataInicioObj = new Date();
+    dataInicioObj.setMonth(dataInicioObj.getMonth() - 1);
 
     const config = {
         ufExame: process.env.SISCAN_UF_EXAME || '1', 
@@ -85,10 +94,10 @@ export async function automatizarPesquisaLaudo() {
         tipoExame: process.env.SISCAN_TIPO_EXAME || '02',
         prestador: process.env.SISCAN_PRESTADOR || '1',
         porData: process.env.SISCAN_POR_DATA || '01', 
-        dataInicio: process.env.SISCAN_DATA_INICIO || '01/07/2026',
-        mesAnoInicio: process.env.SISCAN_MES_ANO_INICIO || '07/2026',
-        dataFim: process.env.SISCAN_DATA_FIM || '31/07/2026',
-        mesAnoFim: process.env.SISCAN_MES_ANO_FIM || '07/2026',
+        dataInicio: formatarData(dataInicioObj),
+        mesAnoInicio: formatarMesAno(dataInicioObj),
+        dataFim: formatarData(dataFimObj),
+        mesAnoFim: formatarMesAno(dataFimObj),
         tamanhoPagina: process.env.SISCAN_TAMANHO_PAGINA || '300' 
     };
     
@@ -217,11 +226,12 @@ export async function automatizarPesquisaLaudo() {
             responseType: 'arraybuffer'
         });
 
-        const nomeArquivo = `relatorio_laudos_${config.mesAnoInicio.replace('/', '_')}.pdf`;
+        const nomeArquivo = `relatorio_laudos_${config.mesAnoInicio.replace('/', '_')}_a_${config.mesAnoFim.replace('/', '_')}.pdf`;
         fs.writeFileSync(nomeArquivo, respostaPdf.data);
 
         console.log(`✅ SUCESSO! Arquivo PDF salvo como '${nomeArquivo}'.`);
-        return respostaPdf.data;
+        
+        return nomeArquivo;
 
     } catch (erro) {
         console.error('❌ Erro na automação do SISCAN:', erro.message || erro);

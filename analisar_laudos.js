@@ -23,6 +23,7 @@ export async function analisarLaudos(caminhoPdf) {
                     Filtre apenas as pacientes cuja CONCLUSÃO contenha termos como "atipia" ou "atípica" (incluindo variações como ASC-US, ASC-H ou baixo/alto grau). 
                     Para cada paciente encontrada, extraia estritamente e retorne um array JSON puro (sem blocos markdown de formatação se possível) contendo objetos com as seguintes chaves exatas: 
                     - "nome" (string)
+                    - "nascimento" (string)
                     - "dataResultado" (string)
                     - "cartaoSUS" (string)
                     - "telefone" (string)

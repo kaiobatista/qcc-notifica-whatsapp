@@ -1,7 +1,6 @@
 let monitor_de_acesso;
 
 // AUTH
-
 function iniciarVigilanciaToken() {
     if (monitor_de_acesso) clearInterval(monitor_de_acesso);
 
@@ -49,7 +48,6 @@ async function realizarLogin() {
 }
 
 // NAVEGAÇÃO E UI
-
 function mudarAba(aba) {
     document.querySelectorAll('.aba-conteudo').forEach(el => el.classList.replace('block', 'hidden'));
     document.getElementById(`aba-${aba}`).classList.replace('hidden', 'block');
@@ -126,7 +124,15 @@ async function carregarPacientes() {
     corpo.innerHTML = lista.reverse().map(p => `
         <tr class="hover:bg-slate-50 border-b border-slate-50">
             <td class="px-6 py-4 font-bold align-top">${p.nome}<br><span class="text-[10px] font-normal">${p.cpf}</span></td>
-            <td class="px-6 py-4 text-sm align-top">${p.nascimento}</td>
+            
+            <!-- CÉLULA: NASCIMENTO E DATA DO LAUDO -->
+            <td class="px-6 py-4 text-sm align-top">
+                <div class="text-slate-700 whitespace-nowrap"><i class="fas fa-birthday-cake text-slate-300 mr-1"></i> ${p.nascimento || '--/--/----'}</div>
+                <div class="mt-1 text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 rounded px-2 py-0.5 inline-block whitespace-nowrap" title="Data do Resultado">
+                    <i class="far fa-calendar-check mr-1"></i> ${p.dataResultado || 'Sem data'}
+                </div>
+            </td>
+
             <td class="px-6 py-4 text-sm align-top">${p.numero}<br><span class="text-[10px] text-slate-400">${p.endereco}</span></td>
             <td class="px-6 py-4 flex flex-col items-start gap-2">
                 <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase ${p.status === 'Enviado' ? 'bg-emerald-100 text-emerald-700' : p.status === 'Número Incorreto' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
