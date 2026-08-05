@@ -1,6 +1,8 @@
 .env
-auth_info
+auth_info/
 pacientes.json
 npm-debug.log*
 .DS_Store
 node_modules/
+*.pdf
+*.zip

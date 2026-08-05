@@ -86,7 +86,6 @@ window.onload = () => {
     });
 };
 
-
 document.getElementById('formCadastro').onsubmit = async (e) => {
     e.preventDefault();
     const dados = {
@@ -125,22 +124,60 @@ async function carregarPacientes() {
 
     const lista = await res.json();
     corpo.innerHTML = lista.reverse().map(p => `
-        <tr class="hover:bg-slate-50">
-            <td class="px-6 py-4 font-bold">${p.nome}<br><span class="text-[10px] font-normal">${p.cpf}</span></td>
-            <td class="px-6 py-4 text-sm">${p.nascimento}</td>
-            <td class="px-6 py-4 text-sm">${p.numero}<br><span class="text-[10px] text-slate-400">${p.endereco}</span></td>
-            <td class="px-6 py-4">
-                <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase ${p.status === 'Enviado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+        <tr class="hover:bg-slate-50 border-b border-slate-50">
+            <td class="px-6 py-4 font-bold align-top">${p.nome}<br><span class="text-[10px] font-normal">${p.cpf}</span></td>
+            <td class="px-6 py-4 text-sm align-top">${p.nascimento}</td>
+            <td class="px-6 py-4 text-sm align-top">${p.numero}<br><span class="text-[10px] text-slate-400">${p.endereco}</span></td>
+            <td class="px-6 py-4 flex flex-col items-start gap-2">
+                <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase ${p.status === 'Enviado' ? 'bg-emerald-100 text-emerald-700' : p.status === 'Número Incorreto' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
                     ${p.status}
                 </span>
+                <!-- TEXTO DO LAUDO COM QUEBRA DE LINHA ATIVADA -->
+                <div class="text-[11px] font-medium text-slate-600 bg-slate-100 p-2 rounded-lg max-w-xs break-words leading-relaxed whitespace-normal border border-slate-200" title="Laudo completo">
+                    <i class="fas fa-microscope text-blue-500 mr-1"></i> ${p.conclusao || 'Aguardando laudo...'}
+                </div>
             </td>
-            <td class="px-6 py-4 flex justify-center gap-3">
-                <button onclick="enviarMensagem(${p.id})" class="text-emerald-500 hover:scale-110 transition" title="Enviar WhatsApp"><i class="fas fa-paper-plane"></i></button>
-                <button onclick='abrirEdicao(${JSON.stringify(p).replace(/'/g, "&apos;")})' class="text-blue-500 hover:scale-110 transition"><i class="fas fa-edit"></i></button>
-                <button onclick="excluirPaciente(${p.id})" class="text-slate-300 hover:text-red-500 transition"><i class="fas fa-trash"></i></button>
+            <td class="px-6 py-4 text-center align-top">
+                <div class="flex justify-center gap-3">
+                    <button onclick="enviarMensagem(${p.id})" class="text-emerald-500 hover:scale-110 transition" title="Enviar WhatsApp"><i class="fas fa-paper-plane"></i></button>
+                    <button onclick='abrirEdicao(${JSON.stringify(p).replace(/'/g, "&apos;")})' class="text-blue-500 hover:scale-110 transition" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button onclick="excluirPaciente(${p.id})" class="text-slate-300 hover:text-red-500 transition" title="Excluir"><i class="fas fa-trash"></i></button>
+                </div>
             </td>
         </tr>
     `).join('');
+}
+
+async function dispararSincronizacao() {
+    if (!confirm("Deseja iniciar a varredura e sincronização manual com o SISCAN?")) return;
+
+    const btn = event.currentTarget;
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sincronizando...';
+
+    try {
+        const res = await fetch('/sincronizar-ministerio', {
+            method: 'GET',
+            headers: { 'Authorization': sessionStorage.getItem('token') }
+        });
+
+        if (res.status === 401) return bloquearSistema();
+
+        const data = await res.json();
+        if (res.ok) {
+            alert(`Sincronização concluída com sucesso! Total de laudos processados: ${data.totalEncontrados || 0}`);
+            carregarPacientes();
+        } else {
+            alert(`Erro na sincronização: ${data.error || 'Erro desconhecido'}`);
+        }
+    } catch (err) {
+        alert("Falha de conexão com o servidor.");
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+    }
 }
 
 async function enviarMensagem(id) { 

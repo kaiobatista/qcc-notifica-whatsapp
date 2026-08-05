@@ -71,18 +71,23 @@
 
         <section id="aba-gerenciar" class="aba-conteudo hidden">
             <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 class="text-2xl font-bold text-slate-800">Pacientes Cadastrados</h2>
-                    <input type="text" id="busca" onkeyup="filtrarTabela()" placeholder="Buscar..." class="p-2 border rounded-lg outline-none">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button onclick="dispararSincronizacao()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md">
+                            <i class="fas fa-sync-alt"></i> Sincronizar Ministério
+                        </button>
+                        <input type="text" id="busca" onkeyup="filtrarTabela()" placeholder="Buscar..." class="p-2 border rounded-lg outline-none">
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
                             <tr>
-                                <th class="px-6 py-4">Paciente / CPF</th>
+                                <th class="px-6 py-4">Paciente / CNS</th>
                                 <th class="px-6 py-4">Nascimento</th>
                                 <th class="px-6 py-4">Contato / Endereço</th>
-                                <th class="px-6 py-4">Status</th>
+                                <th class="px-6 py-4">Status / Resultado</th>
                                 <th class="px-6 py-4 text-center">Ações</th>
                             </tr>
                         </thead>
@@ -96,7 +101,6 @@
     <footer class="mt-12 py-8 border-t border-slate-200 text-center">
         <div class="flex flex-col items-center gap-4">
             <div class="flex items-center gap-6 opacity-70 grayscale hover:grayscale-0 transition duration-500">
-                <!-- <i class="fas fa-university text-3xl text-slate-400"></i> -->
                 <img src="img/uesb_logo.jpg" alt="Logo UESB" class="h-8 w-auto">
                 <div class="h-8 w-[1px] bg-slate-300"></div>
                 <img src="img/qcc_logo.png" alt="Logo Projeto" class="h-8 w-auto">
