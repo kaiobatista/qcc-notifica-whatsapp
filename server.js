@@ -1,10 +1,10 @@
 import 'dotenv/config';
 import express from 'express';
 import pino from 'pino';
-import qrcode from 'qrcode-terminal';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import jwt from 'jsonwebtoken';
@@ -12,6 +12,10 @@ import cron from 'node-cron';
 import { automatizarPesquisaLaudo } from './integracao.js'; 
 import { analisarLaudos } from './analisar_laudos.js'; 
 import { enriquecerPacientesComPec } from './integracao_pec.js'; 
+
+const require = createRequire(import.meta.url);
+const QRCode = require('qrcode-terminal/vendor/QRCode');
+const QRErrorCorrectLevel = require('qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel');
 
 export const app = express();
 app.disable('x-powered-by');
@@ -28,6 +32,7 @@ app.use((req, res, next) => {
         req.path.startsWith('/pacientes') ||
         req.path.startsWith('/login') ||
         req.path.startsWith('/status-sistema') ||
+        req.path.startsWith('/whatsapp') ||
         req.path.startsWith('/configurar-envios-whatsapp') ||
         req.path.startsWith('/cadastrar-paciente') ||
         req.path.startsWith('/editar-paciente') ||
@@ -397,9 +402,42 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 let sock;
 let enviosWhatsAppAtivos = process.env.WHATSAPP_ENVIOS_ATIVOS !== 'false';
+let ultimoQrCode = null;
+let qrAtualizadoEm = null;
+let logQrEmitido = false;
+let conectandoWhatsApp = false;
+
+export function gerarSvgQrCode(texto) {
+    if (!texto || typeof texto !== 'string') return null;
+    const qr = new QRCode(-1, QRErrorCorrectLevel.M);
+    qr.addData(texto);
+    qr.make();
+    const count = qr.getModuleCount();
+    const margin = 4;
+    const size = count + margin * 2;
+    let paths = '';
+    for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+            if (qr.isDark(r, c)) {
+                paths += `M${c + margin},${r + margin}h1v1h-1z`;
+            }
+        }
+    }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/><path d="${paths}" fill="#0f172a"/></svg>`;
+    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
 
 export function definirSocketWhatsApp(novoSock) {
     sock = novoSock;
+}
+
+export function definirQrCodeWhatsApp(qr) {
+    ultimoQrCode = qr || null;
+    qrAtualizadoEm = qr ? new Date().toISOString() : null;
+}
+
+export function obterQrCodeWhatsApp() {
+    return ultimoQrCode;
 }
 
 export function obterStatusEnviosWhatsApp() {
@@ -461,30 +499,71 @@ export async function processarMensagemRecebida({ messages, type }) {
 }
 
 export async function iniciarWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-    const { version } = await fetchLatestBaileysVersion();
+    if (conectandoWhatsApp) return;
+    conectandoWhatsApp = true;
 
-    sock = makeWASocket({
-        version,
-        auth: state,
-        logger: pino({ level: 'error' }),
-    });
+    try {
+        const pastaAuth = path.join(__dirname, 'auth_info');
+        const { state, saveCreds } = await useMultiFileAuthState(pastaAuth);
+        const { version } = await fetchLatestBaileysVersion();
 
-    sock.ev.on('connection.update', (u) => {
-        const { connection, lastDisconnect, qr } = u;
-        if (qr) qrcode.generate(qr, { small: true });
+        sock = makeWASocket({
+            version,
+            auth: state,
+            logger: pino({ level: 'error' }),
+            printQRInTerminal: false
+        });
 
-        if (connection === 'close') {
-            const deveReconectar = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            if (deveReconectar) iniciarWhatsApp();
-        } else if (connection === 'open') {
-            console.log('\nWHATSAPP CONECTADO COM SUCESSO!');
-        }
-    });
+        sock.ev.on('connection.update', (u) => {
+            const { connection, lastDisconnect, qr } = u;
 
-    sock.ev.on('creds.update', saveCreds);
+            if (qr) {
+                ultimoQrCode = qr;
+                qrAtualizadoEm = new Date().toISOString();
+                if (!logQrEmitido) {
+                    console.log('[WHATSAPP] QR Code gerado. Acesse o Painel Web da UESB para escanear com segurança.');
+                    logQrEmitido = true;
+                }
+            }
 
-    sock.ev.on('messages.upsert', processarMensagemRecebida);
+            if (connection === 'close') {
+                conectandoWhatsApp = false;
+                const statusCode = lastDisconnect?.error?.output?.statusCode;
+
+                if (statusCode === DisconnectReason.loggedOut) {
+                    console.log('[WHATSAPP] Sessão desconectada pelo aparelho. Limpando credenciais antigas...');
+                    ultimoQrCode = null;
+                    qrAtualizadoEm = null;
+                    sock = null;
+                    try {
+                        fs.rmSync(pastaAuth, { recursive: true, force: true });
+                    } catch {}
+                    const t = setTimeout(() => iniciarWhatsApp(), 2000);
+                    if (typeof t.unref === 'function') t.unref();
+                } else if (statusCode === DisconnectReason.timedOut && !sock?.user) {
+                    // Pausa reconexão em loop caso ninguém esteja escaneando o QR Code no momento
+                    ultimoQrCode = null;
+                    qrAtualizadoEm = null;
+                } else {
+                    const t = setTimeout(() => iniciarWhatsApp(), 3000);
+                    if (typeof t.unref === 'function') t.unref();
+                }
+            } else if (connection === 'open') {
+                conectandoWhatsApp = false;
+                ultimoQrCode = null;
+                qrAtualizadoEm = null;
+                logQrEmitido = false;
+                console.log('[WHATSAPP] Conectado com sucesso!');
+            }
+        });
+
+        sock.ev.on('creds.update', saveCreds);
+
+        sock.ev.on('messages.upsert', processarMensagemRecebida);
+    } catch (erroWa) {
+        conectandoWhatsApp = false;
+        console.error('[WHATSAPP] Falha ao inicializar cliente:', erroWa.message || erroWa);
+    }
 }
 
 export const verificarToken = (req, res, next) => {
@@ -558,12 +637,61 @@ app.get('/status-sistema', verificarToken, (req, res) => {
 
     res.json({
         whatsappConectado: Boolean(sock?.user),
+        qrDisponivel: Boolean(!sock?.user && ultimoQrCode),
         enviosWhatsAppAtivos,
         siscanConfigurado: Boolean(process.env.SISCAN_EMAIL && process.env.SISCAN_SENHA),
         pecConfigurado: Boolean(process.env.PEC_USUARIO && process.env.PEC_SENHA),
         unidadePadrao: process.env.SISCAN_UNIDADE_PADRAO || 'USF Vila América',
         estatisticas
     });
+});
+
+app.get('/whatsapp/qrcode', verificarToken, (req, res) => {
+    const conectado = Boolean(sock?.user);
+    if (!conectado && !ultimoQrCode && !conectandoWhatsApp) {
+        iniciarWhatsApp();
+    }
+
+    res.json({
+        conectado,
+        qrDisponivel: Boolean(!conectado && ultimoQrCode),
+        qrSvgDataUrl: !conectado && ultimoQrCode ? gerarSvgQrCode(ultimoQrCode) : null,
+        atualizadoEm: qrAtualizadoEm,
+        enviosWhatsAppAtivos
+    });
+});
+
+app.post('/whatsapp/reconectar', verificarToken, async (req, res) => {
+    const { novaSessao } = req.body || {};
+    const pastaAuth = path.join(__dirname, 'auth_info');
+
+    try {
+        if (sock && typeof sock.end === 'function') {
+            try {
+                sock.end();
+            } catch {}
+        }
+        sock = null;
+        ultimoQrCode = null;
+        qrAtualizadoEm = null;
+        conectandoWhatsApp = false;
+
+        if (novaSessao) {
+            try {
+                fs.rmSync(pastaAuth, { recursive: true, force: true });
+            } catch {}
+        }
+
+        iniciarWhatsApp();
+        res.json({
+            status: 'sucesso',
+            mensagem: novaSessao
+                ? 'Sessão anterior encerrada. Gerando novo QR Code para conexão...'
+                : 'Solicitando novo QR Code ao WhatsApp...'
+        });
+    } catch (erro) {
+        res.status(500).json({ error: 'Falha ao reiniciar conexão do WhatsApp: ' + (erro.message || erro) });
+    }
 });
 
 app.post('/configurar-envios-whatsapp', verificarToken, (req, res) => {

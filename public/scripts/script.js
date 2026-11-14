@@ -383,12 +383,30 @@ function atualizarIndicadoresLocais(lista) {
 }
 
 let estadoEnviosWhatsApp = true;
+let timerPollingQrWhatsApp = null;
 
 function renderizarBadgeWhatsApp(whatsappConectado, enviosAtivos) {
     estadoEnviosWhatsApp = Boolean(enviosAtivos);
     const badge = document.getElementById('badge-whatsapp');
     const ponto = document.getElementById('ponto-whatsapp');
     const texto = document.getElementById('texto-whatsapp');
+
+    const btnConexao = document.getElementById('btn-conexao-whatsapp');
+    const iconeConexao = document.getElementById('icone-conexao-whatsapp');
+    const textoConexao = document.getElementById('texto-conexao-whatsapp');
+
+    if (btnConexao && iconeConexao && textoConexao) {
+        if (whatsappConectado) {
+            btnConexao.className = 'flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-300/40 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm';
+            iconeConexao.className = 'fas fa-check-circle text-sm text-emerald-300';
+            textoConexao.textContent = 'Aparelho Conectado';
+        } else {
+            btnConexao.className = 'flex items-center gap-2 bg-rose-500/80 hover:bg-rose-500 border border-rose-300 px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer shadow';
+            iconeConexao.className = 'fas fa-qrcode text-sm text-white';
+            textoConexao.textContent = 'Conectar WhatsApp (QR)';
+        }
+    }
+
     if (!ponto || !texto || !badge) return;
 
     if (!enviosAtivos) {
@@ -404,7 +422,98 @@ function renderizarBadgeWhatsApp(whatsappConectado, enviosAtivos) {
         texto.textContent = 'Envios Ativos (Conectado)';
     } else {
         ponto.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
-        texto.textContent = 'WhatsApp Desconectado';
+        texto.textContent = 'Envios Ativos (Sem Aparelho)';
+    }
+}
+
+async function consultarQrCodeWhatsApp() {
+    try {
+        const res = await fetch('/whatsapp/qrcode', {
+            headers: { 'Authorization': sessionStorage.getItem('token') }
+        });
+        if (res.status === 401) return bloquearSistema();
+        if (!res.ok) return;
+
+        const dados = await res.json();
+        renderizarBadgeWhatsApp(dados.conectado, dados.enviosWhatsAppAtivos);
+
+        const divConectado = document.getElementById('wa-modal-conectado');
+        const divDesconectado = document.getElementById('wa-modal-desconectado');
+        const imgQr = document.getElementById('img-qrcode-whatsapp');
+        const loadingQr = document.getElementById('loading-qrcode-whatsapp');
+
+        if (dados.conectado) {
+            divConectado?.classList.remove('hidden');
+            divDesconectado?.classList.add('hidden');
+        } else {
+            divConectado?.classList.add('hidden');
+            divDesconectado?.classList.remove('hidden');
+
+            if (dados.qrDisponivel && dados.qrSvgDataUrl && imgQr && loadingQr) {
+                imgQr.src = dados.qrSvgDataUrl;
+                imgQr.classList.remove('hidden');
+                loadingQr.classList.add('hidden');
+            } else if (imgQr && loadingQr) {
+                imgQr.classList.add('hidden');
+                loadingQr.classList.remove('hidden');
+            }
+        }
+    } catch {
+        // Ignora falhas de rede temporárias
+    }
+}
+
+function abrirModalWhatsApp() {
+    const modal = document.getElementById('modalWhatsApp');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    consultarQrCodeWhatsApp();
+
+    if (timerPollingQrWhatsApp) clearInterval(timerPollingQrWhatsApp);
+    timerPollingQrWhatsApp = setInterval(consultarQrCodeWhatsApp, 3000);
+}
+
+function fecharModalWhatsApp() {
+    const modal = document.getElementById('modalWhatsApp');
+    if (modal) modal.classList.add('hidden');
+    if (timerPollingQrWhatsApp) {
+        clearInterval(timerPollingQrWhatsApp);
+        timerPollingQrWhatsApp = null;
+    }
+}
+
+async function reconectarWhatsApp(novaSessao = false) {
+    if (novaSessao) {
+        if (!confirm('Deseja desconectar o aparelho atual e gerar um novo QR Code?')) return;
+    }
+
+    const imgQr = document.getElementById('img-qrcode-whatsapp');
+    const loadingQr = document.getElementById('loading-qrcode-whatsapp');
+    const divConectado = document.getElementById('wa-modal-conectado');
+    const divDesconectado = document.getElementById('wa-modal-desconectado');
+
+    divConectado?.classList.add('hidden');
+    divDesconectado?.classList.remove('hidden');
+    imgQr?.classList.add('hidden');
+    loadingQr?.classList.remove('hidden');
+
+    try {
+        const res = await fetch('/whatsapp/reconectar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': sessionStorage.getItem('token')
+            },
+            body: JSON.stringify({ novaSessao })
+        });
+        if (!res.ok) {
+            mostrarToast('Não foi possível solicitar novo QR Code.', 'erro');
+            return;
+        }
+        mostrarToast('Gerando novo QR Code seguro...', 'info');
+        setTimeout(consultarQrCodeWhatsApp, 1500);
+    } catch {
+        mostrarToast('Erro de conexão com o servidor.', 'erro');
     }
 }
 

@@ -31,7 +31,9 @@ import {
     definirSincronizadorPec,
     obterStatusEnviosWhatsApp,
     definirStatusEnviosWhatsApp,
-    deduplicarPacientes
+    deduplicarPacientes,
+    gerarSvgQrCode,
+    definirQrCodeWhatsApp
 } from '../server.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1050,6 +1052,28 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             });
             assert.equal(resEnvioLote.status, 403);
             assert.equal(disparos.length, 0);
+        });
+
+        test('GET /whatsapp/qrcode deve exigir autenticação JWT e fornecer QR Code em SVG sem poluir os logs', async () => {
+            const resSemAuth = await fetch(`${urlBase}/whatsapp/qrcode`);
+            assert.equal(resSemAuth.status, 403);
+
+            definirSocketWhatsApp(null);
+            definirQrCodeWhatsApp('2@QR_TESTE_SEGURO_UESB_12345');
+
+            const resComAuth = await fetch(`${urlBase}/whatsapp/qrcode`, {
+                headers: { Authorization: `Bearer ${tokenValido}` }
+            });
+            assert.equal(resComAuth.status, 200);
+            const corpo = await resComAuth.json();
+            assert.equal(corpo.conectado, false);
+            assert.equal(corpo.qrDisponivel, true);
+            assert.match(corpo.qrSvgDataUrl, /^data:image\/svg\+xml;base64,/);
+
+            const svgDecodificado = Buffer.from(corpo.qrSvgDataUrl.split(',')[1], 'base64').toString('utf-8');
+            assert.ok(svgDecodificado.includes('<svg'), 'Deve conter um SVG vetorial gerado localmente');
+
+            definirQrCodeWhatsApp(null);
         });
     });
 });

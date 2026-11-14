@@ -95,6 +95,11 @@
 
             <!-- INDICADORES DE CONEXÃO E SESSÃO -->
             <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <button type="button" onclick="abrirModalWhatsApp()" id="btn-conexao-whatsapp" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm" title="Gerenciar conexão do WhatsApp via QR Code">
+                    <i id="icone-conexao-whatsapp" class="fas fa-qrcode text-sm text-emerald-300"></i>
+                    <span id="texto-conexao-whatsapp">Conectar WhatsApp</span>
+                </button>
+
                 <button type="button" onclick="alternarEnviosWhatsApp()" id="badge-whatsapp" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm" title="Clique para ativar ou pausar o envio real de mensagens de WhatsApp aos pacientes">
                     <span id="ponto-whatsapp" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
                     <i class="fab fa-whatsapp text-sm"></i>
@@ -463,6 +468,59 @@
                     </thead>
                     <tbody id="tabelaBuscaAtiva" class="divide-y divide-slate-200"></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONEXÃO SEGURA DO WHATSAPP (QR CODE WEB) -->
+    <div id="modalWhatsApp" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 text-center relative">
+            <button onclick="fecharModalWhatsApp()" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 text-2xl shadow-sm">
+                <i class="fab fa-whatsapp"></i>
+            </div>
+            <h2 class="text-xl font-extrabold text-slate-800">Conexão Segura do WhatsApp</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-5">Vincule o WhatsApp da unidade diretamente pelo painel autenticado (sem expor o QR Code nos logs do servidor).</p>
+
+            <!-- ESTADO 1: CONECTADO -->
+            <div id="wa-modal-conectado" class="hidden space-y-4">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                    <div class="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2 text-xl shadow">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <h3 class="font-extrabold text-emerald-900 text-base">Aparelho Conectado!</h3>
+                    <p class="text-xs text-emerald-700 mt-1">A sessão do WhatsApp está autenticada e pronta para uso pela unidade.</p>
+                </div>
+
+                <button type="button" onclick="reconectarWhatsApp(true)" class="w-full py-3 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center justify-center gap-2">
+                    <i class="fas fa-sync-alt"></i> Desconectar / Trocar Aparelho (Gerar Novo QR)
+                </button>
+            </div>
+
+            <!-- ESTADO 2: AGUARDANDO QR CODE -->
+            <div id="wa-modal-desconectado" class="space-y-4">
+                <div class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[250px]">
+                    <img id="img-qrcode-whatsapp" src="" alt="QR Code do WhatsApp" class="hidden w-56 h-56 rounded-xl shadow-sm border border-slate-200 bg-white p-2" />
+                    <div id="loading-qrcode-whatsapp" class="flex flex-col items-center justify-center text-slate-500 py-8">
+                        <i class="fas fa-circle-notch fa-spin text-3xl text-blue-600 mb-3"></i>
+                        <span class="text-xs font-semibold">Gerando QR Code seguro...</span>
+                        <span class="text-[11px] text-slate-400 mt-1">Aguarde alguns segundos</span>
+                    </div>
+                </div>
+
+                <div class="text-left bg-blue-50/70 border border-blue-100 rounded-xl p-3.5 text-[11px] text-slate-600 space-y-1">
+                    <p class="font-bold text-slate-800"><i class="fas fa-mobile-alt text-blue-600 mr-1"></i> Como conectar:</p>
+                    <p>1. Abra o <strong>WhatsApp</strong> no celular da unidade.</p>
+                    <p>2. Toque em <strong>Mais opções (⋮)</strong> ou <strong>Configurações</strong> &rarr; <strong>Aparelhos conectados</strong>.</p>
+                    <p>3. Toque em <strong>Conectar um aparelho</strong> e aponte a câmera para o QR Code acima.</p>
+                </div>
+
+                <button type="button" onclick="reconectarWhatsApp(false)" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fas fa-redo"></i> Atualizar / Gerar Novo QR Code
+                </button>
             </div>
         </div>
     </div>
