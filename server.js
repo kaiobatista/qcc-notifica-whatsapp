@@ -912,7 +912,12 @@ app.put('/editar-paciente/:id', verificarToken, (req, res) => {
     }
 });
 
-if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+const executandoEmTeste =
+    Boolean(process.env.NODE_TEST_CONTEXT) ||
+    process.execArgv.includes('--test') ||
+    process.argv.some((arg) => arg.endsWith('.test.js'));
+
+if (!executandoEmTeste) {
     // --- AGENDAMENTO SEMANAL (CRON) ---
     // Roda toda segunda-feira às 03:00 da manhã
     cron.schedule('0 3 * * 1', async () => {
