@@ -19,6 +19,7 @@ const QRErrorCorrectLevel = require('qrcode-terminal/vendor/QRCode/QRErrorCorrec
 
 export const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '5mb' }));
 
 // Middleware de Cabeçalhos de Segurança HTTP e Proteção de Cache (LGPD Art. 46)
