@@ -9,6 +9,7 @@ import {
     extrairDadosPagina,
     analisarLaudos
 } from '../analisar_laudos.js';
+import { obterCaminhoOuGerarPdfTeste } from './pdf_fixture_helper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -180,7 +181,10 @@ describe('Módulo de Extração Local de Laudos (analisar_laudos.js - LGPD)', ()
 
     describe('analisarLaudos() em arquivos PDF reais', () => {
         test('deve extrair localmente as 8 pacientes com atipia do relatório 05/2026 a 08/2026 sem uso de IA', async () => {
-            const caminhoPdf = path.join(ROOT_DIR, 'relatorio_laudos_05_2026_a_08_2026.pdf');
+            const caminhoPdf = obterCaminhoOuGerarPdfTeste(
+                path.join(ROOT_DIR, 'relatorio_laudos_05_2026_a_08_2026.pdf'),
+                8
+            );
             const pacientes = await analisarLaudos(caminhoPdf);
 
             assert.equal(pacientes.length, 8);
@@ -208,7 +212,10 @@ describe('Módulo de Extração Local de Laudos (analisar_laudos.js - LGPD)', ()
         });
 
         test('deve extrair localmente as 5 pacientes com atipia do relatório 07/2026 (aceitando caminho ou Buffer)', async () => {
-            const caminhoPdf = path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf');
+            const caminhoPdf = obterCaminhoOuGerarPdfTeste(
+                path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf'),
+                5
+            );
             const bufferPdf = fs.readFileSync(caminhoPdf);
             const pacientes = await analisarLaudos(bufferPdf);
 

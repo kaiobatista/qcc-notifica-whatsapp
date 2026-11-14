@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import jwt from 'jsonwebtoken';
+import { obterCaminhoOuGerarPdfTeste } from './pdf_fixture_helper.js';
 import {
     app,
     criptografar,
@@ -370,7 +371,10 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
     describe('Fluxo Completo de Integração Semanal e Rota /sincronizar-ministerio (Sem IA)', () => {
         test('executarFluxoCompletoSemanal() deve extrair localmente os laudos com atipia do PDF e salvar criptografados', async () => {
-            const caminhoPdfReal = path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf');
+            const caminhoPdfReal = obterCaminhoOuGerarPdfTeste(
+                path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf'),
+                5
+            );
 
             const cadastrados = await executarFluxoCompletoSemanal({
                 buscarLaudo: async () => caminhoPdfReal
@@ -400,7 +404,10 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
         });
 
         test('GET /sincronizar-ministerio deve retornar sucesso com o total de pacientes processados localmente', async () => {
-            const caminhoPdfReal = path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf');
+            const caminhoPdfReal = obterCaminhoOuGerarPdfTeste(
+                path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf'),
+                5
+            );
             definirFluxoSemanal(() =>
                 executarFluxoCompletoSemanal({
                     buscarLaudo: async () => caminhoPdfReal
@@ -569,7 +576,10 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
     describe('Integração PEC nas Rotas e no Fluxo Semanal (/sincronizar-pec e enriquecimento de contatos)', () => {
         test('executarFluxoCompletoSemanal() deve enriquecer telefone e endereço via PEC e criptografá-los em disco', async () => {
-            const caminhoPdfReal = path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf');
+            const caminhoPdfReal = obterCaminhoOuGerarPdfTeste(
+                path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf'),
+                5
+            );
 
             const cadastrados = await executarFluxoCompletoSemanal({
                 buscarLaudo: async () => caminhoPdfReal,
@@ -756,7 +766,10 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
         });
 
         test('executarFluxoCompletoSemanal() deve evitar duplicação de pacientes e remover PDF temporário quando configurado', async () => {
-            const pdfOriginal = path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf');
+            const pdfOriginal = obterCaminhoOuGerarPdfTeste(
+                path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf'),
+                5
+            );
             const pdfTemporario = path.join(os.tmpdir(), `laudo_temp_lgpd_${Date.now()}.pdf`);
             fs.copyFileSync(pdfOriginal, pdfTemporario);
 
@@ -928,7 +941,9 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
         });
 
         test('POST /importar-pdf-laudos deve extrair localmente um PDF enviado em base64 e cadastrar pacientes criptografadas', async () => {
-            const pdfBuffer = fs.readFileSync(path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf'));
+            const pdfBuffer = fs.readFileSync(
+                obterCaminhoOuGerarPdfTeste(path.join(ROOT_DIR, 'relatorio_laudos_07_2026.pdf'), 5)
+            );
             const conteudoBase64 = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
 
             const res = await fetch(`${urlBase}/importar-pdf-laudos`, {
