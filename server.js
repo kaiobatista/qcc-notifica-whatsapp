@@ -252,16 +252,132 @@ export function ordenarPacientes(lista, criterio = 'dataResultado', ordem) {
     });
 }
 
+function normalizarNomeComparacao(nome) {
+    if (!nome || typeof nome !== 'string') return '';
+    return nome
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function normalizarDocumentoComparacao(doc) {
+    if (!doc || typeof doc !== 'string') return '';
+    const digitos = doc.replace(/\D/g, '');
+    return digitos.length >= 11 ? digitos : '';
+}
+
+function EnderecoValido(end) {
+    if (!end || typeof end !== 'string') return false;
+    const limpo = end.trim();
+    return limpo.length > 0 && !/n[aã]o\s+consta|n[aã]o\s+informad/i.test(limpo);
+}
+
+const PESO_STATUS = {
+    'Compareceu à USF': 6,
+    'Enviado': 5,
+    'Busca Ativa (ACS)': 4,
+    'Aguardando Confirmação': 3,
+    'Número Incorreto': 2,
+    'Pendente': 1
+};
+
+export function deduplicarPacientes(listaCriptografada) {
+    if (!Array.isArray(listaCriptografada) || listaCriptografada.length <= 1) {
+        return Array.isArray(listaCriptografada) ? listaCriptografada : [];
+    }
+
+    const consolidadosLimpos = [];
+
+    for (const reg of listaCriptografada) {
+        const atual = descriptografarPaciente(reg);
+        const nomeNorm = normalizarNomeComparacao(atual.nome);
+        const docNorm = normalizarDocumentoComparacao(atual.cpf);
+
+        const idx = consolidadosLimpos.findIndex((item) => {
+            const itemDoc = normalizarDocumentoComparacao(item.limpo.cpf);
+            const itemNome = normalizarNomeComparacao(item.limpo.nome);
+            const mesmoDoc = docNorm && itemDoc && docNorm === itemDoc;
+            const mesmoNome = nomeNorm && itemNome && nomeNorm === itemNome;
+            return Boolean(mesmoDoc || mesmoNome);
+        });
+
+        if (idx === -1) {
+            consolidadosLimpos.push({ original: { ...reg }, limpo: atual });
+            continue;
+        }
+
+        const existente = consolidadosLimpos[idx].limpo;
+        const origExistente = consolidadosLimpos[idx].original;
+
+        // Escolhe os dados mais completos e o laudo mais recente entre os duplicados
+        const tsAtual = converterDataBrParaTimestamp(atual.dataResultado);
+        const tsExistente = converterDataBrParaTimestamp(existente.dataResultado);
+        const usarLaudoAtual = tsAtual !== null && (tsExistente === null || tsAtual >= tsExistente);
+
+        if (usarLaudoAtual && atual.dataResultado) {
+            existente.dataResultado = atual.dataResultado;
+            origExistente.dataResultado = criptografar(atual.dataResultado);
+        }
+        if ((usarLaudoAtual && atual.conclusao) || (!existente.conclusao && atual.conclusao)) {
+            existente.conclusao = atual.conclusao;
+            origExistente.conclusao = criptografar(atual.conclusao);
+        }
+        if (!normalizarDocumentoComparacao(existente.cpf) && docNorm) {
+            existente.cpf = docNorm;
+            origExistente.cpf = criptografar(docNorm);
+        }
+        if (!existente.nascimento && atual.nascimento) {
+            existente.nascimento = atual.nascimento;
+            origExistente.nascimento = criptografar(atual.nascimento);
+        }
+        const telAtual = (atual.numero || '').replace(/\D/g, '');
+        const telExistente = (existente.numero || '').replace(/\D/g, '');
+        if (telAtual.length >= 8 && (telExistente.length < 8 || usarLaudoAtual)) {
+            existente.numero = atual.numero;
+            origExistente.numero = criptografar(atual.numero);
+        }
+        if (EnderecoValido(atual.endereco) && (!EnderecoValido(existente.endereco) || usarLaudoAtual)) {
+            existente.endereco = atual.endereco;
+            origExistente.endereco = criptografar(atual.endereco);
+        }
+        if (!existente.observacoes && atual.observacoes) {
+            existente.observacoes = atual.observacoes;
+            origExistente.observacoes = criptografar(atual.observacoes);
+        }
+
+        const pesoAtual = PESO_STATUS[atual.status] || 0;
+        const pesoExistente = PESO_STATUS[existente.status] || 0;
+        if (pesoAtual > pesoExistente) {
+            existente.status = atual.status;
+            origExistente.status = atual.status;
+            if (atual.dataEnvio) {
+                origExistente.dataEnvio = atual.dataEnvio;
+            }
+        }
+    }
+
+    return consolidadosLimpos.map((item) => item.original);
+}
+
 let pacientes = [];
 if (fs.existsSync(caminhoArquivoPacientes)) {
     try {
-        pacientes = JSON.parse(fs.readFileSync(caminhoArquivoPacientes, 'utf-8'));
+        const brutos = JSON.parse(fs.readFileSync(caminhoArquivoPacientes, 'utf-8'));
+        pacientes = deduplicarPacientes(brutos);
+        if (pacientes.length < brutos.length) {
+            fs.writeFileSync(caminhoArquivoPacientes, JSON.stringify(pacientes, null, 2), { mode: 0o600 });
+            console.log(`[🧹 DEDUPLICAÇÃO] ${brutos.length - pacientes.length} registros duplicados foram consolidados automaticamente.`);
+        }
     } catch (e) {
         pacientes = [];
     }
 }
 
 export function salvarPacientes() {
+    pacientes = deduplicarPacientes(pacientes);
     fs.writeFileSync(caminhoArquivoPacientes, JSON.stringify(pacientes, null, 2), { mode: 0o600 });
 }
 
@@ -591,20 +707,34 @@ export async function executarFluxoCompletoSemanal({
         const nomeNovo = (pacienteExtraido.nome || 'Desconhecido').trim();
         const dataResNova = (pacienteExtraido.dataResultado || '').trim();
 
-        // Evita duplicação de registros sensíveis para o mesmo paciente e mesma data de laudo (LGPD - Minimização)
+        // Evita duplicação de registros sensíveis para a mesma paciente (mesmo CNS/CPF ou mesmo nome normalizado)
+        const docNormNovo = normalizarDocumentoComparacao(docNovo);
+        const nomeNormNovo = normalizarNomeComparacao(nomeNovo);
         const idxExistente = pacientes.findIndex((reg) => {
             const regLimpo = descriptografarPaciente(reg);
-            const mesmoDoc = docNovo && regLimpo.cpf === docNovo;
-            const mesmoNome = regLimpo.nome.toUpperCase() === nomeNovo.toUpperCase();
-            return (mesmoDoc || mesmoNome) && regLimpo.dataResultado === dataResNova;
+            const mesmoDoc = docNormNovo && normalizarDocumentoComparacao(regLimpo.cpf) === docNormNovo;
+            const mesmoNome = nomeNormNovo && normalizarNomeComparacao(regLimpo.nome) === nomeNormNovo;
+            return Boolean(mesmoDoc || mesmoNome);
         });
 
         if (idxExistente !== -1) {
             if (pacienteExtraido.telefone) {
                 pacientes[idxExistente].numero = criptografar(pacienteExtraido.telefone);
             }
-            if (pacienteExtraido.endereco) {
+            if (EnderecoValido(pacienteExtraido.endereco)) {
                 pacientes[idxExistente].endereco = criptografar(pacienteExtraido.endereco);
+            }
+            if (pacienteExtraido.nascimento) {
+                pacientes[idxExistente].nascimento = criptografar(pacienteExtraido.nascimento);
+            }
+            if (docNormNovo) {
+                pacientes[idxExistente].cpf = criptografar(docNormNovo);
+            }
+            if (dataResNova) {
+                pacientes[idxExistente].dataResultado = criptografar(dataResNova);
+            }
+            if (pacienteExtraido.conclusao) {
+                pacientes[idxExistente].conclusao = criptografar(pacienteExtraido.conclusao);
             }
             cadastrados.push(pacientes[idxExistente]);
             continue;
@@ -797,19 +927,33 @@ app.post('/importar-pdf-laudos', verificarToken, async (req, res) => {
             const nomeNovo = (pacienteExtraido.nome || 'Desconhecido').trim();
             const dataResNova = (pacienteExtraido.dataResultado || '').trim();
 
+            const docNormNovo = normalizarDocumentoComparacao(docNovo);
+            const nomeNormNovo = normalizarNomeComparacao(nomeNovo);
             const idxExistente = pacientes.findIndex((reg) => {
                 const regLimpo = descriptografarPaciente(reg);
-                const mesmoDoc = docNovo && regLimpo.cpf === docNovo;
-                const mesmoNome = regLimpo.nome.toUpperCase() === nomeNovo.toUpperCase();
-                return (mesmoDoc || mesmoNome) && regLimpo.dataResultado === dataResNova;
+                const mesmoDoc = docNormNovo && normalizarDocumentoComparacao(regLimpo.cpf) === docNormNovo;
+                const mesmoNome = nomeNormNovo && normalizarNomeComparacao(regLimpo.nome) === nomeNormNovo;
+                return Boolean(mesmoDoc || mesmoNome);
             });
 
             if (idxExistente !== -1) {
                 if (pacienteExtraido.telefone) {
                     pacientes[idxExistente].numero = criptografar(pacienteExtraido.telefone);
                 }
-                if (pacienteExtraido.endereco) {
+                if (EnderecoValido(pacienteExtraido.endereco)) {
                     pacientes[idxExistente].endereco = criptografar(pacienteExtraido.endereco);
+                }
+                if (pacienteExtraido.nascimento) {
+                    pacientes[idxExistente].nascimento = criptografar(pacienteExtraido.nascimento);
+                }
+                if (docNormNovo) {
+                    pacientes[idxExistente].cpf = criptografar(docNormNovo);
+                }
+                if (dataResNova) {
+                    pacientes[idxExistente].dataResultado = criptografar(dataResNova);
+                }
+                if (pacienteExtraido.conclusao) {
+                    pacientes[idxExistente].conclusao = criptografar(pacienteExtraido.conclusao);
                 }
                 atualizados++;
                 continue;

@@ -30,7 +30,8 @@ import {
     definirFluxoSemanal,
     definirSincronizadorPec,
     obterStatusEnviosWhatsApp,
-    definirStatusEnviosWhatsApp
+    definirStatusEnviosWhatsApp,
+    deduplicarPacientes
 } from '../server.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -791,6 +792,43 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             });
 
             assert.equal(obterPacientes().length, 5, 'Pacientes já cadastradas com a mesma data de laudo não devem ser duplicadas');
+        });
+
+        test('deduplicarPacientes() deve consolidar registros legados duplicados (mesmo sem dataResultado) mantendo o status mais avançado e dados completos', () => {
+            const listaComDuplicatas = [
+                {
+                    id: 1,
+                    nome: criptografar('ANA CELIA SILVA LESSA'),
+                    numero: criptografar('77988230391'),
+                    nascimento: criptografar('12/05/1961'),
+                    cpf: criptografar('Não informado'),
+                    endereco: criptografar('Não consta no laudo'),
+                    dataResultado: criptografar(''),
+                    conclusao: criptografar('ASC-US'),
+                    status: 'Enviado'
+                },
+                {
+                    id: 2,
+                    nome: criptografar('Ana Célia Silva Lessa'),
+                    numero: criptografar('77991112222'),
+                    nascimento: criptografar('12/05/1961'),
+                    cpf: criptografar('704600127493222'),
+                    endereco: criptografar('Rua Exemplo, Nº 10, Vila América'),
+                    dataResultado: criptografar('31/07/2026'),
+                    conclusao: criptografar('ASC-US (Atipia escamosa)'),
+                    status: 'Pendente'
+                }
+            ];
+
+            const consolidada = deduplicarPacientes(listaComDuplicatas);
+            assert.equal(consolidada.length, 1);
+
+            const limpo = descriptografarPaciente(consolidada[0]);
+            assert.equal(limpo.cpf, '704600127493222');
+            assert.equal(limpo.dataResultado, '31/07/2026');
+            assert.equal(limpo.numero, '77991112222');
+            assert.equal(limpo.endereco, 'Rua Exemplo, Nº 10, Vila América');
+            assert.equal(limpo.status, 'Enviado');
         });
 
         test('Frontend (script.js e index.html) deve sanitizar HTML contra XSS e possuir botão de encerramento de sessão', () => {
