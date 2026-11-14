@@ -7,7 +7,7 @@ import fs from 'fs';
 
 const urlBase = 'https://siscan.saude.gov.br';
 
-const clienteAxios = wrapper(axios.create({
+export const clienteAxios = wrapper(axios.create({
     jar: new CookieJar(),
     withCredentials: true,
     headers: {
@@ -19,20 +19,20 @@ const clienteAxios = wrapper(axios.create({
 }));
 
 // --- FUNÇÕES UTILITÁRIAS ---
-function obterViewState(html) {
+export function obterViewState(html) {
     return cheerio.load(html)('input[name="javax.faces.ViewState"]').first().val();
 }
 
-function formatarData(data) {
+export function formatarData(data) {
     return `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
 }
 
-function formatarMesAno(data) {
+export function formatarMesAno(data) {
     return `${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
 }
 
 // --- MÓDULOS DA AUTOMAÇÃO ---
-async function realizarLogin() {
+export async function realizarLogin() {
     console.log('1. Acessando página de login...');
     const urlLogin = `${urlBase}/login.jsf`;
     const paginaLogin = await clienteAxios.get(urlLogin);
@@ -54,14 +54,13 @@ async function realizarLogin() {
 
     const $ = cheerio.load(resposta.data);
     if (!$('form[name="formPerfil"]').length) {
-        fs.writeFileSync('erro_login_real.html', resposta.data, 'utf-8');
         throw new Error('Falha no login ou credenciais incorretas.');
     }
 
     return obterViewState(resposta.data);
 }
 
-async function selecionarPerfil(viewStatePerfil, perfilIndex) {
+export async function selecionarPerfil(viewStatePerfil, perfilIndex) {
     console.log('2. Selecionando perfil de acesso...');
     const urlPerfil = `${urlBase}/visao/acesso/perfil.jsf`;
     const botaoPerfil = `j_id28:${perfilIndex}:j_id31`;
@@ -78,14 +77,14 @@ async function selecionarPerfil(viewStatePerfil, perfilIndex) {
 }
 
 // --- FUNÇÃO PRINCIPAL ---
-export async function automatizarPesquisaLaudo() {
+export async function automatizarPesquisaLaudo(mesesRetroativos = Number(process.env.SISCAN_MESES_RETROATIVOS) || 6) {
     if (!process.env.SISCAN_EMAIL || !process.env.SISCAN_SENHA) {
         throw new Error('SISCAN_EMAIL e SISCAN_SENHA devem estar configurados no arquivo .env.');
     }
 
     const dataFimObj = new Date();
     const dataInicioObj = new Date();
-    dataInicioObj.setMonth(dataInicioObj.getMonth() - 1);
+    dataInicioObj.setMonth(dataInicioObj.getMonth() - mesesRetroativos);
 
     const config = {
         ufExame: process.env.SISCAN_UF_EXAME || '1', 
@@ -164,7 +163,6 @@ export async function automatizarPesquisaLaudo() {
             if (novoViewState) {
                 viewState = novoViewState;
             } else if (respostaAjax.data.includes('errorMessage')) {
-                fs.writeFileSync(`erro_ajax_${campoAlvo.replace(':', '_')}.xml`, respostaAjax.data, 'utf-8');
                 const $erro = cheerio.load(respostaAjax.data);
                 throw new Error(`SISCAN rejeitou a sincronização do campo '${campoAlvo}': ` + $erro('.errorMessage').text().trim());
             } else {
@@ -227,7 +225,7 @@ export async function automatizarPesquisaLaudo() {
         });
 
         const nomeArquivo = `relatorio_laudos_${config.mesAnoInicio.replace('/', '_')}_a_${config.mesAnoFim.replace('/', '_')}.pdf`;
-        fs.writeFileSync(nomeArquivo, respostaPdf.data);
+        fs.writeFileSync(nomeArquivo, respostaPdf.data, { mode: 0o600 });
 
         console.log(`✅ SUCESSO! Arquivo PDF salvo como '${nomeArquivo}'.`);
         

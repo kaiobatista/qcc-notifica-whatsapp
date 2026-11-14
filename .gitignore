@@ -2,7 +2,10 @@
 auth_info/
 pacientes.json
 npm-debug.log*
+*.log
 .DS_Store
 node_modules/
 *.pdf
 *.zip
+erro_*.html
+erro_*.xml

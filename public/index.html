@@ -3,138 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quem Cuida, Conecta! | Gestão em Saúde</title>
+    <title>Quem Cuida, Conecta! | Gestão Inteligente em Saúde</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="img/qcc_logo.png" type="image/png">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #modalBuscaAtiva, #modalBuscaAtiva * {
+                visibility: visible;
+            }
+            #modalBuscaAtiva {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                box-shadow: none !important;
+            }
+            .ocultar-impressao {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
-    <div id="tela-login" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[100] transition-opacity duration-500">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-            <img src="img/qcc_logo.png" alt="logo" class="h-20 w-20 mx-auto mb-4 drop-shadow-lg">
-            <i class="fas fa-user-md text-5xl text-blue-600 mb-4"></i>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
-            <p class="text-slate-500 text-sm mb-6">Área exclusiva para profissionais da USF.</p>
-            <input type="password" id="senha-acesso" placeholder="Digite a senha" 
-                class="w-full p-3 border rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-500 text-center">
-            <button onclick="realizarLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700">
-                Entrar no Sistema
+<body class="bg-slate-100 min-h-screen text-slate-900 flex flex-col">
+    <!-- CONTAINER DE NOTIFICAÇÕES TOAST -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[200] flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- TELA DE LOGIN -->
+    <div id="tela-login" class="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center z-[100] transition-opacity duration-500 p-4">
+        <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-md text-center border border-white/20">
+            <div class="relative inline-block mb-4">
+                <img src="img/qcc_logo.png" alt="logo" class="h-20 w-20 mx-auto drop-shadow-md rounded-2xl bg-blue-50 p-2">
+                <span class="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[10px] w-6 h-6 rounded-full flex items-center justify-center shadow" title="Conformidade LGPD Ativa">
+                    <i class="fas fa-shield-alt"></i>
+                </span>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-800 mb-1">Acesso Restrito</h2>
+            <p class="text-slate-500 text-sm mb-6">Painel de Busca Ativa e Rastreamento Citopatológico da USF</p>
+
+            <div class="relative mb-4">
+                <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="password" id="senha-acesso" placeholder="Digite a senha da unidade"
+                    class="w-full pl-11 pr-11 py-3.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-center font-medium bg-slate-50 focus:bg-white transition">
+                <button type="button" onclick="alternarVisibilidadeSenha()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <i id="icone-olho-senha" class="fas fa-eye"></i>
+                </button>
+            </div>
+
+            <button onclick="realizarLogin()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3.5 rounded-xl hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-600/25 transition flex items-center justify-center gap-2">
+                <i class="fas fa-sign-in-alt"></i> Entrar no Sistema
             </button>
-            <p id="erro-login" class="text-red-500 text-xs mt-3 hidden italic">Senha inválida. Tente novamente.</p>
-            <p class="text-[10px] text-slate-400 mt-6 uppercase tracking-tighter">
+            <p id="erro-login" class="text-red-600 bg-red-50 border border-red-200 rounded-lg py-2 px-3 text-xs mt-3 hidden font-medium">
+                <i class="fas fa-exclamation-circle mr-1"></i> Senha inválida. Tente novamente.
+            </p>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-[11px] text-slate-500">
+                <i class="fas fa-user-shield text-emerald-600"></i>
+                <span>Processamento 100% local &bull; Criptografia AES-256 (LGPD)</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2 uppercase tracking-wider">
                 © 2026 UESB - Medicina | Vitória da Conquista
             </p>
         </div>
     </div>
 
-    <nav class="bg-blue-700 text-white shadow-lg p-4 mb-8">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
+    <!-- BARRA DE NAVEGAÇÃO SUPERIOR -->
+    <nav class="bg-gradient-to-r from-blue-800 via-blue-700 to-indigo-800 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center gap-3">
-                <img src="img/qcc_logo.png" alt="Logo Quem Cuida, Conecta!" class="h-10 w-10 object-contain rounded-lg bg-white p-1">
+                <img src="img/qcc_logo.png" alt="Logo Quem Cuida, Conecta!" class="h-11 w-11 object-contain rounded-xl bg-white p-1 shadow">
                 <div class="flex flex-col leading-tight">
-                    <h1 class="text-xl font-bold tracking-tight">Quem Cuida, Conecta!</h1>
-                    <span class="text-[10px] uppercase tracking-widest opacity-80">Gestão em Saúde</span>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl font-extrabold tracking-tight">Quem Cuida, Conecta!</h1>
+                        <span class="hidden sm:inline-flex items-center gap-1 bg-white/15 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                            <i class="fas fa-shield-alt text-emerald-300"></i> LGPD
+                        </span>
+                    </div>
+                    <span class="text-[11px] text-blue-100 font-medium">Rastreamento Citopatológico &bull; USF Vila América</span>
                 </div>
             </div>
-            
-            <div class="flex gap-2">
-                <button onclick="mudarAba('cadastro')" id="btn-aba-cadastro" 
-                    class="px-4 py-2 rounded-lg bg-blue-800 transition shadow-inner font-semibold">
-                    <i class="fas fa-user-plus mr-1"></i> Cadastrar
+
+            <!-- INDICADORES DE CONEXÃO E SESSÃO -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <button type="button" onclick="alternarEnviosWhatsApp()" id="badge-whatsapp" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm" title="Clique para ativar ou pausar o envio real de mensagens de WhatsApp aos pacientes">
+                    <span id="ponto-whatsapp" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <i class="fab fa-whatsapp text-sm"></i>
+                    <span id="texto-whatsapp">Verificando...</span>
                 </button>
-                <button onclick="mudarAba('gerenciar')" id="btn-aba-gerenciar" 
-                    class="px-4 py-2 rounded-lg hover:bg-blue-600 transition font-semibold">
-                    <i class="fas fa-tasks mr-1"></i> Gerenciar
+
+                <div class="hidden md:flex items-center gap-1.5 bg-white/10 border border-white/15 px-3 py-1.5 rounded-xl text-xs font-semibold" title="Tempo restante da sessão autenticada">
+                    <i class="far fa-clock text-blue-200"></i>
+                    <span id="timer-sessao">05:00</span>
+                </div>
+
+                <div class="flex items-center gap-1.5 bg-blue-900/50 p-1 rounded-xl border border-white/10">
+                    <button onclick="mudarAba('gerenciar')" id="btn-aba-gerenciar"
+                        class="px-3.5 py-1.5 rounded-lg bg-white text-blue-800 shadow font-bold text-xs sm:text-sm transition flex items-center gap-1.5">
+                        <i class="fas fa-chart-pie"></i> Painel & Pacientes
+                    </button>
+                    <button onclick="mudarAba('cadastro')" id="btn-aba-cadastro"
+                        class="px-3.5 py-1.5 rounded-lg hover:bg-white/10 text-white font-semibold text-xs sm:text-sm transition flex items-center gap-1.5">
+                        <i class="fas fa-user-plus"></i> Cadastrar
+                    </button>
+                </div>
+
+                <button onclick="bloquearSistema()" id="btn-sair" title="Encerrar sessão com segurança"
+                    class="px-3.5 py-2 rounded-xl bg-red-500/90 hover:bg-red-600 transition font-bold text-xs sm:text-sm shadow flex items-center gap-1.5">
+                    <i class="fas fa-sign-out-alt"></i> <span class="hidden sm:inline">Sair</span>
                 </button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto px-4 pb-12">
-        <section id="aba-cadastro" class="aba-conteudo block">
-            <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-                <div class="text-center mb-8">
-                    <h2 class="text-2xl font-bold text-slate-800">Novo Cadastro</h2>
-                    <p class="text-slate-500 text-sm italic">Preencha os dados do paciente da USF.</p>
-                </div>
-                <form id="formCadastro" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Nome Completo</label><input type="text" id="nome" required class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></div>
-                    <div><label class="text-xs font-bold text-slate-500 uppercase">WhatsApp</label><input type="text" id="numero" required placeholder="77912345678" class="w-full p-3 border rounded-xl"></div>
-                    <div><label class="text-xs font-bold text-slate-500 uppercase">CPF</label><input type="text" id="cpf" required placeholder="123.456.789-10" class="w-full p-3 border rounded-xl"></div>
-                    <div><label class="text-xs font-bold text-slate-500 uppercase">Nascimento (DD/MM/AAAA)</label><input type="text" id="nascimento" required placeholder="DD/MM/AAAA" class="w-full p-3 border rounded-xl"></div>
-                    <div><label class="text-xs font-bold text-slate-500 uppercase">Unidade</label><input type="text" id="unidade" value="USF Vila América" class="w-full p-3 border rounded-xl bg-slate-50" readonly></div>
-                    <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Endereço</label><input type="text" id="endereco" required class="w-full p-3 border rounded-xl"></div>
-                    <button type="submit" class="md:col-span-2 bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition"><i class="fas fa-save mr-2"></i> Salvar Paciente</button>
-                </form>
-            </div>
-        </section>
+    <main class="max-w-7xl w-full mx-auto px-4 py-6 flex-1">
+        <!-- ABA GERENCIAR & PAINEL DE INDICADORES (PADRÃO) -->
+        <section id="aba-gerenciar" class="aba-conteudo block space-y-6">
+            <!-- CARDS DE INDICADORES CLÍNICOS (CLICÁVEIS PARA FILTRAR) -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                <button onclick="selecionarFiltroRapido('todos')" id="card-kpi-todos"
+                    class="kpi-card text-left bg-white p-4 rounded-2xl shadow-sm border-2 border-blue-500 hover:shadow-md transition flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full mb-2">
+                        <span class="text-[11px] font-bold uppercase text-slate-500">Total c/ Atipia</span>
+                        <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><i class="fas fa-users"></i></span>
+                    </div>
+                    <div id="kpi-total" class="text-2xl font-extrabold text-slate-800">0</div>
+                    <span class="text-[10px] text-slate-400 mt-1">Todos os laudos ativos</span>
+                </button>
 
-        <section id="aba-gerenciar" class="aba-conteudo hidden">
-            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <h2 class="text-2xl font-bold text-slate-800">Pacientes Cadastrados</h2>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <button onclick="dispararSincronizacao()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md">
+                <button onclick="selecionarFiltroRapido('prioridade:Alta')" id="card-kpi-alta"
+                    class="kpi-card text-left bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-400 hover:shadow-md transition flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full mb-2">
+                        <span class="text-[11px] font-bold uppercase text-rose-600">Prioridade Alta</span>
+                        <span class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center"><i class="fas fa-exclamation-triangle"></i></span>
+                    </div>
+                    <div id="kpi-prioridade-alta" class="text-2xl font-extrabold text-rose-600">0</div>
+                    <span class="text-[10px] text-slate-400 mt-1">HSIL / ASC-H / AGC</span>
+                </button>
+
+                <button onclick="selecionarFiltroRapido('Pendente')" id="card-kpi-pendentes"
+                    class="kpi-card text-left bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-amber-400 hover:shadow-md transition flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full mb-2">
+                        <span class="text-[11px] font-bold uppercase text-amber-600">Pendentes</span>
+                        <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fas fa-hourglass-half"></i></span>
+                    </div>
+                    <div id="kpi-pendentes" class="text-2xl font-extrabold text-amber-600">0</div>
+                    <span class="text-[10px] text-slate-400 mt-1">Aguardando envio</span>
+                </button>
+
+                <button onclick="selecionarFiltroRapido('Enviado')" id="card-kpi-enviados"
+                    class="kpi-card text-left bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-400 hover:shadow-md transition flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full mb-2">
+                        <span class="text-[11px] font-bold uppercase text-emerald-600">Notificadas</span>
+                        <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fab fa-whatsapp"></i></span>
+                    </div>
+                    <div id="kpi-enviados" class="text-2xl font-extrabold text-emerald-600">0</div>
+                    <span class="text-[10px] text-slate-400 mt-1">Receberam aviso</span>
+                </button>
+
+                <button onclick="selecionarFiltroRapido('Compareceu à USF')" id="card-kpi-compareceram"
+                    class="kpi-card text-left bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-teal-500 hover:shadow-md transition flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full mb-2">
+                        <span class="text-[11px] font-bold uppercase text-teal-700">Na Unidade</span>
+                        <span class="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center"><i class="fas fa-Clinic-medical fa-hospital-user"></i></span>
+                    </div>
+                    <div id="kpi-compareceram" class="text-2xl font-extrabold text-teal-700">0</div>
+                    <span class="text-[10px] text-slate-400 mt-1">Compareceram à USF</span>
+                </button>
+
+                <button onclick="selecionarFiltroRapido('buscaAtiva')" id="card-kpi-busca-ativa"
+                    class="kpi-card text-left bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-400 hover:shadow-md transition flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full mb-2">
+                        <span class="text-[11px] font-bold uppercase text-purple-700">Busca Ativa ACS</span>
+                        <span class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center"><i class="fas fa-walking"></i></span>
+                    </div>
+                    <div id="kpi-busca-ativa" class="text-2xl font-extrabold text-purple-700">0</div>
+                    <span class="text-[10px] text-slate-400 mt-1">Sem fone / Nº incorreto</span>
+                </button>
+            </div>
+
+            <!-- PAINEL PRINCIPAL DE PACIENTES -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <!-- BARRA DE AÇÕES DE INTEGRAÇÃO E LOTE -->
+                <div class="p-5 border-b border-slate-100 bg-slate-50/60 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                        <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                            Pacientes Cadastrados
+                            <span id="contador-registros" class="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">0</span>
+                        </h2>
+                        <p class="text-xs text-slate-500">Gerencie a comunicação de laudos citopatológicos com atipia e acompanhe o retorno à USF.</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                        <button onclick="dispararSincronizacao()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
                             <i class="fas fa-sync-alt"></i> Sincronizar com SISCAN
                         </button>
-                        <input type="text" id="busca" onkeyup="filtrarTabela()" placeholder="Buscar..." class="p-2 border rounded-lg outline-none">
+                        <button onclick="dispararSincronizacaoPec()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm" title="Buscar telefone e endereço atualizados no PEC do município">
+                            <i class="fas fa-address-book"></i> Atualizar Contatos (PEC)
+                        </button>
+                        <button onclick="dispararLotePendentes()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm" title="Enviar notificação via WhatsApp para todas as pacientes pendentes com telefone">
+                            <i class="fab fa-whatsapp"></i> Notificar Pendentes
+                        </button>
+                        <label for="inputPdfLaudos" class="cursor-pointer bg-slate-700 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm" title="Importar um arquivo PDF de laudos baixado do SISCAN">
+                            <i class="fas fa-file-pdf"></i> Importar PDF
+                            <input type="file" id="inputPdfLaudos" accept="application/pdf" class="hidden" onchange="importarArquivoPdfLocal(event)">
+                        </label>
+                        <button onclick="abrirModalBuscaAtiva()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm" title="Gerar lista de visita domiciliar para Agentes Comunitários de Saúde (ACS)">
+                            <i class="fas fa-print"></i> Lista ACS
+                        </button>
                     </div>
                 </div>
+
+                <!-- BARRA DE FILTROS, ORDENAÇÃO E BUSCA -->
+                <div class="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label for="criterioOrdenacao" class="text-xs font-bold uppercase text-slate-500 whitespace-nowrap">
+                                <i class="fas fa-sort mr-1 text-blue-600"></i>Ordenar por:
+                            </label>
+                            <select id="criterioOrdenacao" onchange="aplicarOrdenacao()" class="p-2 border border-slate-200 rounded-xl outline-none bg-slate-50 hover:bg-white focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm font-medium text-slate-700">
+                                <option value="dataResultado:desc" selected>Data do Laudo (Mais recente)</option>
+                                <option value="dataResultado:asc">Data do Laudo (Mais antigo)</option>
+                                <option value="prioridade:desc">Prioridade Clínica (Maior risco)</option>
+                                <option value="nascimento:asc">Data de Nascimento (Mais velha)</option>
+                                <option value="nascimento:desc">Data de Nascimento (Mais nova)</option>
+                                <option value="nome:asc">Paciente (A-Z)</option>
+                                <option value="nome:desc">Paciente (Z-A)</option>
+                                <option value="status:asc">Status (A-Z)</option>
+                                <option value="cadastro:desc">Ordem de Cadastro</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <label for="filtroStatus" class="text-xs font-bold uppercase text-slate-500 whitespace-nowrap">
+                                <i class="fas fa-filter mr-1 text-blue-600"></i>Filtro:
+                            </label>
+                            <select id="filtroStatus" onchange="filtrarTabela()" class="p-2 border border-slate-200 rounded-xl outline-none bg-slate-50 hover:bg-white focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm font-medium text-slate-700">
+                                <option value="todos">Todos os pacientes</option>
+                                <option value="prioridade:Alta">🚨 Prioridade Alta (HSIL/ASC-H/AGC)</option>
+                                <option value="prioridade:Moderada">⚠️ Prioridade Moderada (LSIL/ASC-US)</option>
+                                <option value="Pendente">⏳ Pendentes de envio</option>
+                                <option value="Aguardando Confirmação">💬 Aguardando confirmação (1/0)</option>
+                                <option value="Enviado">✅ Notificadas pelo WhatsApp</option>
+                                <option value="Compareceu à USF">🏥 Compareceram à USF</option>
+                                <option value="buscaAtiva">🚶‍♀️ Busca Ativa (Sem telefone / Nº incorreto)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="relative flex-1 max-w-md">
+                        <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input type="text" id="busca" onkeyup="filtrarTabela()" placeholder="Buscar por nome, CNS/CPF, endereço ou laudo..."
+                            class="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-xl outline-none bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                </div>
+
+                <!-- TABELA DE PACIENTES -->
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200">
                             <tr>
                                 <th class="px-6 py-4">Paciente / CNS</th>
-                                <th class="px-6 py-4">Nascimento / Data Laudo</th>
+                                <th class="px-6 py-4">Data de Nascimento</th>
+                                <th class="px-6 py-4">Data do Laudo</th>
                                 <th class="px-6 py-4">Contato / Endereço</th>
                                 <th class="px-6 py-4">Status / Resultado</th>
                                 <th class="px-6 py-4 text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="tabelaPacientes" class="divide-y divide-slate-100"></tbody>
+                        <tbody id="tabelaPacientes" class="divide-y divide-slate-100 text-sm"></tbody>
                     </table>
                 </div>
             </div>
         </section>
+
+        <!-- ABA NOVO CADASTRO MANUAL -->
+        <section id="aba-cadastro" class="aba-conteudo hidden">
+            <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm p-8 border border-slate-200">
+                <div class="text-center mb-8">
+                    <span class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 mb-3">
+                        <i class="fas fa-user-plus text-xl"></i>
+                    </span>
+                    <h2 class="text-2xl font-extrabold text-slate-800">Novo Cadastro Manual</h2>
+                    <p class="text-slate-500 text-sm">Cadastre manualmente uma paciente da USF para acompanhamento e notificação.</p>
+                </div>
+                <form id="formCadastro" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-bold text-slate-600 uppercase">Nome Completo</label>
+                        <input type="text" id="nome" required class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">WhatsApp (DDD + Número)</label>
+                        <input type="text" id="numero" required placeholder="77912345678" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">CNS ou CPF</label>
+                        <input type="text" id="cpf" required placeholder="Cartão SUS ou CPF" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Data de Nascimento</label>
+                        <input type="text" id="nascimento" required placeholder="DD/MM/AAAA" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Data do Laudo (Opcional)</label>
+                        <input type="text" id="dataResultado" placeholder="DD/MM/AAAA" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-bold text-slate-600 uppercase">Endereço Completo</label>
+                        <input type="text" id="endereco" required placeholder="Rua, Número, Bairro" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-bold text-slate-600 uppercase">Conclusão do Exame / Motivo da Convocação</label>
+                        <input type="text" id="conclusao" placeholder="Ex: ASC-US / Lesão intraepitelial de baixo grau" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Unidade de Saúde</label>
+                        <input type="text" id="unidade" value="USF Vila América" class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-600" readonly>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Observações da Equipe</label>
+                        <input type="text" id="observacoes" placeholder="Ex: Microárea 03 - ACS Maria" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button type="submit" class="md:col-span-2 bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-save"></i> Salvar Paciente Criptografado
+                    </button>
+                </form>
+            </div>
+        </section>
     </main>
 
-    <footer class="mt-12 py-8 border-t border-slate-200 text-center">
+    <!-- RODAPÉ -->
+    <footer class="mt-12 py-8 border-t border-slate-200 bg-white text-center">
         <div class="flex flex-col items-center gap-4">
-            <div class="flex items-center gap-6 opacity-70 grayscale hover:grayscale-0 transition duration-500">
+            <div class="flex items-center gap-6 opacity-80 hover:opacity-100 transition duration-300">
                 <img src="img/uesb_logo.jpg" alt="Logo UESB" class="h-8 w-auto">
                 <div class="h-8 w-[1px] bg-slate-300"></div>
                 <img src="img/qcc_logo.png" alt="Logo Projeto" class="h-8 w-auto">
             </div>
-            
+
             <div class="text-slate-500 text-sm">
                 <p class="font-bold text-slate-700">Projeto de Extensão: Quem Cuida, Conecta!</p>
                 <p>Desenvolvido por <span class="text-blue-600 font-semibold">Kaio Batista Almeida</span>, <span class="text-blue-600 font-semibold">Alisson Godoy da Silva</span> & <span class="text-blue-600 font-semibold">Profª Karine Brito</span></p>
                 <p class="text-[10px] uppercase mt-2 tracking-widest">Universidade Estadual do Sudoeste da Bahia (UESB)</p>
             </div>
 
-            <div class="flex gap-4 mt-2">
+            <div class="flex gap-4 mt-1">
                 <a href="https://www.instagram.com/qcc_quemcuidaconecta/" target="_blank" class="text-slate-400 hover:text-blue-600 transition"><i class="fab fa-instagram text-lg"></i></a>
                 <a href="mailto:quemcuidaconecta@gmail.com" target="_blank" class="text-slate-400 hover:text-slate-800 transition"><i class="fas fa-envelope text-lg"></i></a>
             </div>
         </div>
     </footer>
 
-    <div id="modalEdicao" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold text-slate-800">Editar Paciente</h2>
-                <button onclick="fecharModal()" class="text-slate-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+    <!-- MODAL DE EDIÇÃO E ACOMPANHAMENTO CLÍNICO -->
+    <div id="modalEdicao" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 pb-3 border-b border-slate-100">
+                <div>
+                    <h2 class="text-xl font-extrabold text-slate-800">Editar Cadastro e Acompanhamento</h2>
+                    <p class="text-xs text-slate-500">Atualize contatos, status de comparecimento ou observações da equipe.</p>
+                </div>
+                <button onclick="fecharModal()" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <form id="formEdicao" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="hidden" id="edit-id">
-                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500">Nome</label><input type="text" id="edit-nome" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></div>
-                <div><label class="text-xs font-bold text-slate-500">WhatsApp</label><input type="text" id="edit-numero" class="w-full p-3 border rounded-xl"></div>
-                <div><label class="text-xs font-bold text-slate-500">CPF</label><input type="text" id="edit-cpf" class="w-full p-3 border rounded-xl"></div>
-                <div><label class="text-xs font-bold text-slate-500">Nascimento</label><input type="text" id="edit-nascimento" class="w-full p-3 border rounded-xl"></div>
-                <div><label class="text-xs font-bold text-slate-500">Unidade</label><input type="text" id="edit-unidade" class="w-full p-3 border rounded-xl"></div>
-                <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500">Endereço</label><input type="text" id="edit-endereco" class="w-full p-3 border rounded-xl"></div>
-                <button type="submit" class="md:col-span-2 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition">Atualizar Dados</button>
+                <div class="md:col-span-2">
+                    <label class="text-xs font-bold text-slate-600 uppercase">Nome da Paciente</label>
+                    <input type="text" id="edit-nome" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">WhatsApp (DDD + Número)</label>
+                    <input type="text" id="edit-numero" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">CNS / CPF</label>
+                    <input type="text" id="edit-cpf" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">Data de Nascimento</label>
+                    <input type="text" id="edit-nascimento" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">Data do Laudo</label>
+                    <input type="text" id="edit-dataResultado" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">Status do Acompanhamento</label>
+                    <select id="edit-status" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="Pendente">Pendente</option>
+                        <option value="Aguardando Confirmação">Aguardando Confirmação</option>
+                        <option value="Enviado">Enviado (Notificada)</option>
+                        <option value="Compareceu à USF">Compareceu à USF</option>
+                        <option value="Busca Ativa (ACS)">Busca Ativa (ACS)</option>
+                        <option value="Número Incorreto">Número Incorreto</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">Unidade de Saúde</label>
+                    <input type="text" id="edit-unidade" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="text-xs font-bold text-slate-600 uppercase">Endereço Completo</label>
+                    <input type="text" id="edit-endereco" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="text-xs font-bold text-slate-600 uppercase">Observações / Anotações da Equipe (Criptografado)</label>
+                    <textarea id="edit-observacoes" rows="2" placeholder="Registre aqui informações de visita domiciliar, microárea/ACS ou data da consulta agendada..." class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="md:col-span-2 flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="fecharModal()" class="px-5 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition">Cancelar</button>
+                    <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md transition">
+                        <i class="fas fa-check mr-1"></i> Salvar Alterações
+                    </button>
+                </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE LISTA DE BUSCA ATIVA PARA AGENTES COMUNITÁRIOS DE SAÚDE (ACS) -->
+    <div id="modalBuscaAtiva" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+            <div class="flex flex-wrap justify-between items-center gap-4 mb-6 pb-4 border-b border-slate-200">
+                <div>
+                    <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-walking text-purple-600"></i> Relatório de Busca Ativa Domiciliar (ACS)
+                    </h2>
+                    <p class="text-xs text-slate-500">Relação de pacientes pendentes de comparecimento ou sem contato telefônico válido. Sigilo protegido pela LGPD.</p>
+                </div>
+                <div class="flex items-center gap-2 ocultar-impressao">
+                    <button onclick="window.print()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 shadow">
+                        <i class="fas fa-print"></i> Imprimir Lista
+                    </button>
+                    <button onclick="fecharModalBuscaAtiva()" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border border-slate-200 text-xs">
+                    <thead class="bg-slate-100 text-slate-700 uppercase font-bold">
+                        <tr>
+                            <th class="p-3 border-b">Paciente / CNS</th>
+                            <th class="p-3 border-b">Nascimento</th>
+                            <th class="p-3 border-b">Prioridade / Data Laudo</th>
+                            <th class="p-3 border-b">Telefone / Endereço para Visita</th>
+                            <th class="p-3 border-b">Observações / Assinatura ACS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaBuscaAtiva" class="divide-y divide-slate-200"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
