@@ -104,21 +104,21 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
         test('descriptografarPaciente() deve descriptografar todos os campos sensíveis e aplicar padrão na conclusão', () => {
             const registroCifrado = {
                 id: 1,
-                nome: criptografar('ANA CELIA SILVA LESSA'),
-                numero: criptografar('77988230391'),
-                nascimento: criptografar('12/05/1961'),
-                cpf: criptografar('704600127493222'),
-                endereco: criptografar('Rua Eva Peron, 268'),
+                nome: criptografar('PACIENTE FICTICIA TESTE 01'),
+                numero: criptografar('77900000001'),
+                nascimento: criptografar('01/01/1981'),
+                cpf: criptografar('700000000000001'),
+                endereco: criptografar('Rua Fictícia de Teste, 100'),
                 dataResultado: criptografar('31/07/2026'),
                 conclusao: ''
             };
 
             const pacienteLimpo = descriptografarPaciente(registroCifrado);
-            assert.equal(pacienteLimpo.nome, 'ANA CELIA SILVA LESSA');
-            assert.equal(pacienteLimpo.numero, '77988230391');
-            assert.equal(pacienteLimpo.nascimento, '12/05/1961');
-            assert.equal(pacienteLimpo.cpf, '704600127493222');
-            assert.equal(pacienteLimpo.endereco, 'Rua Eva Peron, 268');
+            assert.equal(pacienteLimpo.nome, 'PACIENTE FICTICIA TESTE 01');
+            assert.equal(pacienteLimpo.numero, '77900000001');
+            assert.equal(pacienteLimpo.nascimento, '01/01/1981');
+            assert.equal(pacienteLimpo.cpf, '700000000000001');
+            assert.equal(pacienteLimpo.endereco, 'Rua Fictícia de Teste, 100');
             assert.equal(pacienteLimpo.dataResultado, '31/07/2026');
             assert.equal(pacienteLimpo.conclusao, 'Aguardando laudo...');
         });
@@ -265,11 +265,11 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
             const paciente = {
                 id: 501,
-                nome: criptografar('SILVANA ROCHA OLIVEIRA'),
-                numero: criptografar('7734200000'),
-                nascimento: criptografar('06/09/1979'),
-                cpf: criptografar('701401612864332'),
-                endereco: criptografar('Rua Graciliano Ramos'),
+                nome: criptografar('PACIENTE FICTICIA TESTE 05'),
+                numero: criptografar('7730000005'),
+                nascimento: criptografar('05/05/1985'),
+                cpf: criptografar('700000000000005'),
+                endereco: criptografar('Rua Fictícia de Teste, 500'),
                 unidade: 'USF Vila América',
                 conclusao: criptografar('ATIPIAS EM CÉLULAS ESCAMOSAS: Lesão intraepitelial de baixo grau'),
                 dataResultado: criptografar('20/07/2026'),
@@ -284,7 +284,7 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             assert.equal(resDisparo.status, 200);
             assert.equal(obterPacientes()[0].status, 'Aguardando Confirmação');
             assert.equal(mensagensEnviadas.length, 1);
-            assert.match(mensagensEnviadas[0].conteudo.text, /Você é \*SILVANA ROCHA OLIVEIRA\*\?/);
+            assert.match(mensagensEnviadas[0].conteudo.text, /Você é \*PACIENTE FICTICIA TESTE 05\*\?/);
 
             const jidDestino = mensagensEnviadas[0].jid;
 
@@ -317,7 +317,8 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             });
 
             assert.equal(mensagensEnviadas.length, 3);
-            assert.match(mensagensEnviadas[2].conteudo.text, /Conclusão: ATIPIAS EM CÉLULAS ESCAMOSAS: Lesão intraepitelial de baixo grau/);
+            assert.match(mensagensEnviadas[2].conteudo.text, /resultado do seu exame preventivo já está disponível na \*USF Vila América\*/);
+            assert.equal(mensagensEnviadas[2].conteudo.text.includes('Conclusão:'), false);
             assert.equal(obterPacientes()[0].status, 'Enviado');
             assert.equal(aguardandoConfirmacao.has(jidDestino), false);
         });
@@ -333,10 +334,10 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
             const paciente = {
                 id: 502,
-                nome: criptografar('ANA CELIA SILVA LESSA'),
-                numero: criptografar('77988230391'),
-                nascimento: criptografar('12/05/1961'),
-                cpf: criptografar('704600127493222'),
+                nome: criptografar('PACIENTE FICTICIA TESTE 01'),
+                numero: criptografar('77900000001'),
+                nascimento: criptografar('01/01/1981'),
+                cpf: criptografar('700000000000001'),
                 endereco: criptografar(''),
                 unidade: 'USF Vila América',
                 conclusao: criptografar('ASC-US'),
@@ -394,8 +395,8 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             }
 
             const primeiroDescriptografado = descriptografarPaciente(cadastrados[0]);
-            assert.equal(primeiroDescriptografado.nome, 'ANA CELIA SILVA LESSA');
-            assert.equal(primeiroDescriptografado.nascimento, '12/05/1961');
+            assert.equal(primeiroDescriptografado.nome, 'PACIENTE FICTICIA ALFA');
+            assert.equal(primeiroDescriptografado.nascimento, '01/01/1981');
             assert.equal(primeiroDescriptografado.dataResultado, '31/07/2026');
         });
 
@@ -566,12 +567,14 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'scripts', 'script.js'), 'utf-8');
 
             assert.ok(html.includes('<th class="px-6 py-4">Data de Nascimento</th>'), 'Cabeçalho de Data de Nascimento separado deve existir');
+            assert.ok(html.includes('<th class="px-6 py-4">Data da Coleta</th>'), 'Cabeçalho de Data da Coleta separado deve existir');
             assert.ok(html.includes('<th class="px-6 py-4">Data do Laudo</th>'), 'Cabeçalho de Data do Laudo separado deve existir');
             assert.ok(!html.includes('Nascimento / Data Laudo'), 'Cabeçalho antigo combinado não deve existir');
             assert.ok(html.includes('id="criterioOrdenacao"'), 'Seletor de critério de ordenação deve existir');
             assert.ok(html.includes('<option value="dataResultado:desc" selected>'), 'Padrão de ordenação deve ser Data do Laudo');
 
             assert.ok(script.includes('CÉLULA: DATA DE NASCIMENTO'), 'Célula separada de nascimento deve existir no script.js');
+            assert.ok(script.includes('CÉLULA: DATA DA COLETA'), 'Célula separada de data da coleta deve existir no script.js');
             assert.ok(script.includes('CÉLULA: DATA DO LAUDO'), 'Célula separada de data do laudo deve existir no script.js');
             assert.ok(script.includes('function ordenarPacientesLista'), 'Função de ordenação no cliente deve existir no script.js');
         });
@@ -607,10 +610,10 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             definirPacientes([
                 {
                     id: 901,
-                    nome: criptografar('ANA CELIA SILVA LESSA'),
+                    nome: criptografar('PACIENTE FICTICIA TESTE 01'),
                     numero: criptografar('77900000000'),
-                    nascimento: criptografar('12/05/1961'),
-                    cpf: criptografar('704600127493222'),
+                    nascimento: criptografar('01/01/1981'),
+                    cpf: criptografar('700000000000001'),
                     endereco: criptografar(''),
                     dataResultado: criptografar('31/07/2026'),
                     conclusao: criptografar('ASC-US'),
@@ -624,7 +627,7 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
                         pacientes: lista.map((p) => ({
                             ...p,
                             numero: '77999112233',
-                            endereco: 'Av. Olívia Flores, Nº 500 - Bairro: Candeias'
+                            endereco: 'Av. Fictícia de Teste, Nº 500 - Bairro: Bairro Teste'
                         })),
                         totalAnalisados: lista.length,
                         totalAtualizados: 1
@@ -649,7 +652,7 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
             const limpo = descriptografarPaciente(salvoCifrado);
             assert.equal(limpo.numero, '77999112233');
-            assert.equal(limpo.endereco, 'Av. Olívia Flores, Nº 500 - Bairro: Candeias');
+            assert.equal(limpo.endereco, 'Av. Fictícia de Teste, Nº 500 - Bairro: Bairro Teste');
         });
 
         test('POST /sincronizar-pec deve retornar 400 caso as credenciais do PEC não estejam configuradas', async () => {
@@ -688,15 +691,15 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
     describe('Segurança da Informação e Adequação à LGPD (Hardening)', () => {
         test('compararSenhasSeguro() deve comparar senhas em tempo constante e rejeitar entradas inválidas', () => {
-            assert.equal(compararSenhasSeguro('medicina@uesb', 'medicina@uesb'), true);
-            assert.equal(compararSenhasSeguro('senha_errada', 'medicina@uesb'), false);
-            assert.equal(compararSenhasSeguro(null, 'medicina@uesb'), false);
-            assert.equal(compararSenhasSeguro('medicina@uesb', ''), false);
+            assert.equal(compararSenhasSeguro('senha_ficticia_teste_123', 'senha_ficticia_teste_123'), true);
+            assert.equal(compararSenhasSeguro('senha_errada', 'senha_ficticia_teste_123'), false);
+            assert.equal(compararSenhasSeguro(null, 'senha_ficticia_teste_123'), false);
+            assert.equal(compararSenhasSeguro('senha_ficticia_teste_123', ''), false);
         });
 
         test('mascararDadoSensivel() deve anonimizar nomes e JIDs de telefone para logs seguros (LGPD)', () => {
-            assert.equal(mascararDadoSensivel('5577988230391@s.whatsapp.net'), '5577****91@s.whatsapp.net');
-            assert.equal(mascararDadoSensivel('SILVANA ROCHA OLIVEIRA'), 'SIL***RA');
+            assert.equal(mascararDadoSensivel('5577900000001@s.whatsapp.net'), '5577****01@s.whatsapp.net');
+            assert.equal(mascararDadoSensivel('PACIENTE FICTICIA TESTE 05'), 'PAC***05');
             assert.equal(mascararDadoSensivel(''), '***');
         });
 
@@ -741,8 +744,8 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
             const pacienteComNumero = {
                 id: 701,
-                nome: criptografar('MARIA TESTE REAL'),
-                numero: criptografar('77988230391'),
+                nome: criptografar('PACIENTE FICTICIA TESTE 01'),
+                numero: criptografar('77900000001'),
                 unidade: 'USF Vila América',
                 conclusao: criptografar('ASC-US'),
                 status: 'Pendente'
@@ -750,8 +753,13 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
 
             await dispararMensagemPaciente(pacienteComNumero);
             assert.equal(envios.length, 1);
-            // 55 + 77 + 88230391 (9º dígito removido para DDD > 31 no padrão WhatsApp)
-            assert.equal(envios[0].jid, '557788230391@s.whatsapp.net');
+            // 55 + 77 + 00000001 (9º dígito removido para DDD > 31 no padrão WhatsApp)
+            assert.equal(envios[0].jid, '557700000001@s.whatsapp.net');
+            const dadosConfirmacao = aguardandoConfirmacao.get('557700000001@s.whatsapp.net');
+            assert.ok(dadosConfirmacao, 'Deve registrar a paciente aguardando confirmação');
+            assert.ok(dadosConfirmacao.mensagemFinal.includes('já está disponível na *USF Vila América*'));
+            assert.ok(!dadosConfirmacao.mensagemFinal.includes('ASC-US'), 'Não deve expor a conclusão do laudo no WhatsApp (sigilo LGPD)');
+            assert.ok(!dadosConfirmacao.mensagemFinal.includes('Conclusão:'), 'Não deve exibir o campo Conclusão na mensagem');
 
             const pacienteSemNumero = {
                 id: 702,
@@ -800,9 +808,9 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             const listaComDuplicatas = [
                 {
                     id: 1,
-                    nome: criptografar('ANA CELIA SILVA LESSA'),
-                    numero: criptografar('77988230391'),
-                    nascimento: criptografar('12/05/1961'),
+                    nome: criptografar('PACIENTE FICTICIA TESTE 01'),
+                    numero: criptografar('77900000001'),
+                    nascimento: criptografar('01/01/1981'),
                     cpf: criptografar('Não informado'),
                     endereco: criptografar('Não consta no laudo'),
                     dataResultado: criptografar(''),
@@ -811,11 +819,11 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
                 },
                 {
                     id: 2,
-                    nome: criptografar('Ana Célia Silva Lessa'),
+                    nome: criptografar('Paciente Fictícia Teste 01'),
                     numero: criptografar('77991112222'),
-                    nascimento: criptografar('12/05/1961'),
-                    cpf: criptografar('704600127493222'),
-                    endereco: criptografar('Rua Exemplo, Nº 10, Vila América'),
+                    nascimento: criptografar('01/01/1981'),
+                    cpf: criptografar('700000000000001'),
+                    endereco: criptografar('Rua Exemplo, Nº 10, Bairro Teste'),
                     dataResultado: criptografar('31/07/2026'),
                     conclusao: criptografar('ASC-US (Atipia escamosa)'),
                     status: 'Pendente'
@@ -826,11 +834,53 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
             assert.equal(consolidada.length, 1);
 
             const limpo = descriptografarPaciente(consolidada[0]);
-            assert.equal(limpo.cpf, '704600127493222');
+            assert.equal(limpo.cpf, '700000000000001');
             assert.equal(limpo.dataResultado, '31/07/2026');
             assert.equal(limpo.numero, '77991112222');
-            assert.equal(limpo.endereco, 'Rua Exemplo, Nº 10, Vila América');
+            assert.equal(limpo.endereco, 'Rua Exemplo, Nº 10, Bairro Teste');
             assert.equal(limpo.status, 'Enviado');
+        });
+
+        test('Suíte de testes deve usar credenciais efêmeras isoladas do .env e não conter senhas reais ou dados pessoais nos scripts', () => {
+            assert.match(process.env.SENHA_PAINEL || '', /^senha_teste_efemera_[a-f0-9]{24}$/);
+            assert.equal(process.env.SISCAN_EMAIL, undefined);
+            assert.equal(process.env.SISCAN_SENHA, undefined);
+            assert.equal(process.env.PEC_USUARIO, undefined);
+            assert.equal(process.env.PEC_SENHA, undefined);
+
+            // Se existir .env local, garante que nenhuma credencial real do .env está carregada nos testes
+            const caminhoEnv = path.join(ROOT_DIR, '.env');
+            if (fs.existsSync(caminhoEnv)) {
+                const linhasEnv = fs.readFileSync(caminhoEnv, 'utf-8').split(/\r?\n/);
+                for (const linha of linhasEnv) {
+                    const match = linha.match(/^\s*(SENHA_PAINEL|SECRET_KEY)\s*=\s*(.+)\s*$/);
+                    if (match) {
+                        const chave = match[1];
+                        const valorReal = match[2].replace(/^['"]|['"]$/g, '').trim();
+                        if (valorReal) {
+                            assert.notEqual(
+                                process.env[chave],
+                                valorReal,
+                                `A variável ${chave} de produção não deve ser carregada durante os testes`
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Verifica que nenhum arquivo em tests/ contém CNS reais fora da faixa sintética 700000000000xxx
+            const arquivosTeste = fs.readdirSync(__dirname).filter((f) => f.endsWith('.js'));
+            for (const arquivo of arquivosTeste) {
+                const conteudo = fs.readFileSync(path.join(__dirname, arquivo), 'utf-8');
+                const cnsEncontrados = conteudo.match(/\b7\d{14}\b/g) || [];
+                for (const cns of cnsEncontrados) {
+                    assert.match(
+                        cns,
+                        /^700000000000\d{3}$/,
+                        `CNS em ${arquivo} deve ser exclusivamente sintético (700000000000xxx), encontrado: ${cns}`
+                    );
+                }
+            }
         });
 
         test('Frontend (script.js e index.html) deve sanitizar HTML contra XSS e possuir botão de encerramento de sessão', () => {
@@ -954,7 +1004,7 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
                 {
                     id: 810,
                     nome: criptografar('COM TELEFONE'),
-                    numero: criptografar('77988230391'),
+                    numero: criptografar('77900000001'),
                     unidade: 'USF Vila América',
                     conclusao: criptografar('ASC-US'),
                     status: 'Pendente'
@@ -1016,7 +1066,7 @@ describe('Módulo Principal do Servidor, Criptografia LGPD, Rotas e WhatsApp (se
                 {
                     id: 850,
                     nome: criptografar('PACIENTE MODO TESTE'),
-                    numero: criptografar('77988230391'),
+                    numero: criptografar('77900000001'),
                     unidade: 'USF Vila América',
                     conclusao: criptografar('ASC-US'),
                     status: 'Pendente'

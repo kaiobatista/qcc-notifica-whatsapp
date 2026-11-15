@@ -190,8 +190,10 @@ window.onload = () => {
     });
 
     aplicarMascaraData(document.getElementById('nascimento'));
+    aplicarMascaraData(document.getElementById('dataColeta'));
     aplicarMascaraData(document.getElementById('dataResultado'));
     aplicarMascaraData(document.getElementById('edit-nascimento'));
+    aplicarMascaraData(document.getElementById('edit-dataColeta'));
     aplicarMascaraData(document.getElementById('edit-dataResultado'));
 };
 
@@ -202,6 +204,7 @@ document.getElementById('formCadastro').onsubmit = async (e) => {
         numero: "55" + document.getElementById('numero').value.replace(/\D/g, ''),
         cpf: document.getElementById('cpf').value,
         nascimento: document.getElementById('nascimento').value,
+        dataColeta: document.getElementById('dataColeta')?.value || '',
         dataResultado: document.getElementById('dataResultado')?.value || '',
         conclusao: document.getElementById('conclusao')?.value || '',
         observacoes: document.getElementById('observacoes')?.value || '',
@@ -290,7 +293,7 @@ function ordenarPacientesLista(lista, criterio = 'dataResultado', ordem = 'desc'
             return tsB - tsA;
         }
 
-        if (criterio === 'dataResultado' || criterio === 'nascimento') {
+        if (criterio === 'dataResultado' || criterio === 'dataColeta' || criterio === 'nascimento') {
             const tsA = converterDataBrParaTimestamp(a[criterio]);
             const tsB = converterDataBrParaTimestamp(b[criterio]);
 
@@ -565,7 +568,7 @@ function renderizarTabelaPacientes(lista) {
     if (lista.length === 0) {
         corpo.innerHTML = `
             <tr>
-                <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                <td colspan="7" class="px-6 py-12 text-center text-slate-400">
                     <i class="fas fa-folder-open text-3xl mb-2 block text-slate-300"></i>
                     Nenhum paciente cadastrado encontrado.
                 </td>
@@ -581,6 +584,7 @@ function renderizarTabelaPacientes(lista) {
         const cpfSeguro = escaparHtml(p.cpf || 'Sem CNS/CPF');
         const nascSeguro = escaparHtml(p.nascimento || '--/--/----');
         const idadeTexto = calcularIdade(p.nascimento);
+        const dataColSeguro = escaparHtml(p.dataColeta || 'Sem data');
         const dataResSeguro = escaparHtml(p.dataResultado || 'Sem data');
         const foneFormatado = formatarTelefoneExibicao(p.numero);
         const numeroSeguro = escaparHtml(foneFormatado);
@@ -618,6 +622,13 @@ function renderizarTabelaPacientes(lista) {
             <td class="px-6 py-4 text-sm align-top whitespace-nowrap">
                 <div class="text-slate-700 font-medium"><i class="fas fa-birthday-cake text-slate-300 mr-1"></i> ${nascSeguro}</div>
                 ${idadeTexto ? `<span class="text-[11px] text-slate-400">${escaparHtml(idadeTexto)}</span>` : ''}
+            </td>
+
+            <!-- CÉLULA: DATA DA COLETA -->
+            <td class="px-6 py-4 text-sm align-top whitespace-nowrap">
+                <div class="text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-2.5 py-1 inline-block whitespace-nowrap" title="Data da Coleta do Exame">
+                    <i class="fas fa-vial mr-1"></i> ${dataColSeguro}
+                </div>
             </td>
 
             <!-- CÉLULA: DATA DO LAUDO -->
@@ -942,6 +953,9 @@ function abrirEdicao(p) {
     document.getElementById('edit-numero').value = (p.numero || '').replace(/^55/, '');
     document.getElementById('edit-cpf').value = p.cpf || '';
     document.getElementById('edit-nascimento').value = p.nascimento || '';
+    if (document.getElementById('edit-dataColeta')) {
+        document.getElementById('edit-dataColeta').value = p.dataColeta || '';
+    }
     if (document.getElementById('edit-dataResultado')) {
         document.getElementById('edit-dataResultado').value = p.dataResultado || '';
     }
@@ -969,6 +983,7 @@ document.getElementById('formEdicao').onsubmit = async (e) => {
         numero: foneDigitado ? (foneDigitado.startsWith('55') ? foneDigitado : "55" + foneDigitado) : '',
         cpf: document.getElementById('edit-cpf').value,
         nascimento: document.getElementById('edit-nascimento').value,
+        dataColeta: document.getElementById('edit-dataColeta')?.value || '',
         dataResultado: document.getElementById('edit-dataResultado')?.value || '',
         status: document.getElementById('edit-status')?.value || 'Pendente',
         observacoes: document.getElementById('edit-observacoes')?.value || '',

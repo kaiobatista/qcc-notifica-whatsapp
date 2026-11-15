@@ -1,9 +1,18 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import axios from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
 import * as cheerio from 'cheerio';
 import fs from 'fs';
+
+const executandoEmTeste =
+    Boolean(process.env.NODE_TEST_CONTEXT) ||
+    process.execArgv.includes('--test') ||
+    process.argv.some((arg) => arg.endsWith('.test.js'));
+
+if (!executandoEmTeste) {
+    dotenv.config();
+}
 
 const urlBase = 'https://siscan.saude.gov.br';
 

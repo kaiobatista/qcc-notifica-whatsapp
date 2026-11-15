@@ -45,6 +45,7 @@ export function extrairDadosPagina(textoPagina) {
     let cartaoSUS = '';
     let nascimento = '';
     let telefone = '';
+    let dataColeta = '';
     let dataResultado = '';
     let conclusao = '';
 
@@ -90,6 +91,18 @@ export function extrairDadosPagina(textoPagina) {
         }
     }
 
+    const dataColDiretaMatch = textoPagina.match(/Data da coleta:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    if (dataColDiretaMatch) {
+        dataColeta = dataColDiretaMatch[1].trim();
+    } else {
+        const dataColBrutaMatch =
+            textoPagina.match(/\n[A-Z]{2}[\t ]+(\d{2}\/\d{2}\/\d{4})\n\d{6,8}\n/i) ||
+            textoPagina.match(/Data da coleta:[\s\S]*?\b(\d{2}\/\d{2}\/\d{4})\b/i);
+        if (dataColBrutaMatch) {
+            dataColeta = dataColBrutaMatch[1].trim();
+        }
+    }
+
     const dataResDiretaMatch = textoPagina.match(/Data da libera[çc][ãa]o do resultado:\s*(\d{2}\/\d{2}\/\d{4})/i);
     if (dataResDiretaMatch) {
         dataResultado = dataResDiretaMatch[1].trim();
@@ -115,6 +128,7 @@ export function extrairDadosPagina(textoPagina) {
     return {
         nome,
         nascimento,
+        dataColeta,
         dataResultado,
         cartaoSUS,
         telefone,

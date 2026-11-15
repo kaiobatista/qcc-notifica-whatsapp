@@ -1,14 +1,30 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-// Define variáveis de ambiente padrão para que a suíte de testes funcione mesmo sem .env completo
-if (!/^[a-fA-F0-9]{64}$/.test(process.env.SECRET_KEY || '')) {
-    process.env.SECRET_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-}
-if (!process.env.SENHA_PAINEL) {
-    process.env.SENHA_PAINEL = 'medicina@uesb';
-}
+// Define credenciais e chaves efêmeras exclusivas de teste para isolar a execução
+// e impedir o uso ou vazamento de senhas reais do arquivo .env (LGPD / Segurança)
+process.env.SECRET_KEY = crypto.randomBytes(32).toString('hex');
+process.env.SENHA_PAINEL = `senha_teste_efemera_${crypto.randomBytes(12).toString('hex')}`;
+delete process.env.SISCAN_EMAIL;
+delete process.env.SISCAN_SENHA;
+delete process.env.PEC_USUARIO;
+delete process.env.PEC_SENHA;
+delete process.env.WHATSAPP_NUMERO_TESTE;
+
+const arquivosPdfTemporarios = new Set();
+process.on('exit', () => {
+    for (const caminho of arquivosPdfTemporarios) {
+        try {
+            if (fs.existsSync(caminho)) {
+                fs.unlinkSync(caminho);
+            }
+        } catch {
+            // Ignora falhas de limpeza no encerramento do processo
+        }
+    }
+});
 
 export function gerarBufferPdfSintetico(paginasLinhas) {
     const objects = [];
@@ -64,9 +80,12 @@ export function gerarBufferPdfSintetico(paginasLinhas) {
     return Buffer.from(pdf, 'latin1');
 }
 
-function criarPaginaLaudo({ nome, cartaoSUS, nascimento, telefone, dataResultado, conclusao }) {
+function criarPaginaLaudo({ nome, cartaoSUS, nascimento, telefone, dataColeta = '10/07/2026', dataResultado, conclusao }) {
     return [
         'LAUDO DO EXAME CITOPATOLOGICO DO COLO DE UTERO',
+        'UNIDADE DE SAUDE',
+        'Nome: USF VILA AMERICA CNES: 6918654',
+        `Data da coleta: ${dataColeta} UF: BA Municipio: VITORIA DA CONQUISTA`,
         'PACIENTE',
         `Cartao SUS: ${cartaoSUS} Sexo: Feminino`,
         `Nome: ${nome} Idade: 45`,
@@ -83,42 +102,47 @@ function criarPaginaLaudo({ nome, cartaoSUS, nascimento, telefone, dataResultado
 
 export const PACIENTES_EXEMPLO_5 = [
     {
-        nome: 'ANA CELIA SILVA LESSA',
-        cartaoSUS: '704600127493222',
-        nascimento: '12/05/1961',
-        telefone: '77988230391',
+        nome: 'PACIENTE FICTICIA ALFA',
+        cartaoSUS: '700000000000001',
+        nascimento: '01/01/1981',
+        telefone: '77900000001',
+        dataColeta: '15/07/2026',
         dataResultado: '31/07/2026',
         conclusao: 'CELULAS ATIPICAS DE SIGNIFICADO INDETERMINADO: ESCAMOSAS (ASC-US)'
     },
     {
-        nome: 'ELENILZA SANTOS ALMEIDA NERES',
+        nome: 'PACIENTE FICTICIA BETA',
         cartaoSUS: '700000000000002',
-        nascimento: '14/03/1979',
-        telefone: '77988230002',
+        nascimento: '02/02/1982',
+        telefone: '77900000002',
+        dataColeta: '12/07/2026',
         dataResultado: '28/07/2026',
         conclusao: 'LESAO INTRAEPITELIAL DE BAIXO GRAU (LSIL)'
     },
     {
-        nome: 'MARIA CLAUDIA DE JESUS SANTOS',
+        nome: 'PACIENTE FICTICIA GAMA',
         cartaoSUS: '700000000000003',
-        nascimento: '22/08/1983',
-        telefone: '77988230003',
+        nascimento: '03/03/1983',
+        telefone: '77900000003',
+        dataColeta: '10/07/2026',
         dataResultado: '25/07/2026',
         conclusao: 'LESAO INTRAEPITELIAL DE ALTO GRAU (HSIL)'
     },
     {
-        nome: 'SAMARA DE JESUS SANTOS',
-        cartaoSUS: '707001826479335',
-        nascimento: '09/01/1975',
-        telefone: '7734217217',
+        nome: 'PACIENTE FICTICIA DELTA',
+        cartaoSUS: '700000000000004',
+        nascimento: '04/04/1984',
+        telefone: '7730000004',
+        dataColeta: '05/07/2026',
         dataResultado: '20/07/2026',
         conclusao: 'CELULAS ATIPICAS DE SIGNIFICADO INDETERMINADO: ESCAMOSAS (ASC-H)'
     },
     {
-        nome: 'SILVANA ROCHA OLIVEIRA',
+        nome: 'PACIENTE FICTICIA EPSILON',
         cartaoSUS: '700000000000005',
-        nascimento: '05/11/1988',
-        telefone: '77988230005',
+        nascimento: '05/05/1985',
+        telefone: '77900000005',
+        dataColeta: '02/07/2026',
         dataResultado: '18/07/2026',
         conclusao: 'CELULAS GLANDULARES ATIPICAS (AGC)'
     }
@@ -129,28 +153,31 @@ export const PACIENTES_EXEMPLO_8 = [
     PACIENTES_EXEMPLO_5[1],
     PACIENTES_EXEMPLO_5[2],
     {
-        nome: 'MARIA LIMA MORAIS',
+        nome: 'PACIENTE FICTICIA ZETA',
         cartaoSUS: '700000000000006',
-        nascimento: '10/04/1972',
-        telefone: '77988230006',
+        nascimento: '06/06/1986',
+        telefone: '77900000006',
+        dataColeta: '01/06/2026',
         dataResultado: '15/06/2026',
         conclusao: 'LESAO INTRAEPITELIAL DE BAIXO GRAU (LSIL)'
     },
     {
-        nome: 'REBECA DIAS MENEZES DA SILVA',
+        nome: 'PACIENTE FICTICIA ETA',
         cartaoSUS: '700000000000007',
-        nascimento: '19/09/1991',
-        telefone: '77988230007',
+        nascimento: '07/07/1987',
+        telefone: '77900000007',
+        dataColeta: '28/05/2026',
         dataResultado: '10/06/2026',
         conclusao: 'CELULAS ATIPICAS DE SIGNIFICADO INDETERMINADO (ASC-US)'
     },
     PACIENTES_EXEMPLO_5[3],
     PACIENTES_EXEMPLO_5[4],
     {
-        nome: 'VANECIA DIAS DOS SANTOS',
+        nome: 'PACIENTE FICTICIA TETA',
         cartaoSUS: '700000000000008',
-        nascimento: '03/02/1985',
-        telefone: '77988230008',
+        nascimento: '08/08/1988',
+        telefone: '77900000008',
+        dataColeta: '08/05/2026',
         dataResultado: '22/05/2026',
         conclusao: 'LESAO INTRAEPITELIAL DE ALTO GRAU (HSIL)'
     }
@@ -160,7 +187,7 @@ const PAGINA_LAUDO_NORMAL = criarPaginaLaudo({
     nome: 'PACIENTE RESULTADO NORMAL',
     cartaoSUS: '700000000000099',
     nascimento: '01/01/1990',
-    telefone: '77988000099',
+    telefone: '77900000099',
     dataResultado: '15/07/2026',
     conclusao: 'DENTRO DOS LIMITES DA NORMALIDADE NO MATERIAL EXAMINADO'
 });
@@ -169,7 +196,8 @@ export function obterCaminhoOuGerarPdfTeste(_caminhoOriginal, quantidadeAtipicos
     const lista = quantidadeAtipicos === 8 ? PACIENTES_EXEMPLO_8 : PACIENTES_EXEMPLO_5;
     const paginas = [...lista.map(criarPaginaLaudo), PAGINA_LAUDO_NORMAL];
     const buffer = gerarBufferPdfSintetico(paginas);
-    const destinoTemp = path.join(os.tmpdir(), `fixture_laudos_${quantidadeAtipicos}_atipicos.pdf`);
-    fs.writeFileSync(destinoTemp, buffer);
+    const destinoTemp = path.join(os.tmpdir(), `fixture_laudos_${quantidadeAtipicos}_atipicos_${process.pid}.pdf`);
+    fs.writeFileSync(destinoTemp, buffer, { mode: 0o600 });
+    arquivosPdfTemporarios.add(destinoTemp);
     return destinoTemp;
 }

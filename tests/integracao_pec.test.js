@@ -70,35 +70,35 @@ describe('Módulo de Integração com o PEC e-SUS APS (integracao_pec.js)', () =
                         telefoneContato: '',
                         telefoneResidencial: ''
                     },
-                    '77988230391'
+                    '77900000001'
                 ),
-                '77988230391'
+                '77900000001'
             );
         });
 
         test('formatarEnderecoPec() deve montar endereço completo legível a partir do objeto do PEC', () => {
             const enderecoCompleto = formatarEnderecoPec({
                 tipoLogradouro: { nome: 'Rua' },
-                logradouro: 'Graciliano Ramos',
-                numero: '145',
+                logradouro: 'Logradouro Fictício A',
+                numero: '100',
                 complemento: 'Casa B',
-                bairro: 'Vila América',
-                municipio: { nome: 'Vitória da Conquista' },
+                bairro: 'Bairro Teste',
+                municipio: { nome: 'Município Teste' },
                 cep: '45000000'
             });
 
             assert.equal(
                 enderecoCompleto,
-                'Rua Graciliano Ramos, Nº 145 - Casa B - Bairro: Vila América - Vitória da Conquista - CEP: 45000000'
+                'Rua Logradouro Fictício A, Nº 100 - Casa B - Bairro: Bairro Teste - Município Teste - CEP: 45000000'
             );
 
             const enderecoSemNumero = formatarEnderecoPec({
                 tipoLogradouro: { nome: 'Avenida' },
-                logradouro: 'Francisco Sabino',
+                logradouro: 'Avenida Fictícia B',
                 semNumero: true,
-                bairro: 'Vila América'
+                bairro: 'Bairro Teste'
             });
-            assert.equal(enderecoSemNumero, 'Avenida Francisco Sabino, S/N - Bairro: Vila América');
+            assert.equal(enderecoSemNumero, 'Avenida Avenida Fictícia B, S/N - Bairro: Bairro Teste');
 
             assert.equal(formatarEnderecoPec(null, 'Endereço Antigo'), 'Endereço Antigo');
         });
@@ -107,16 +107,16 @@ describe('Módulo de Integração com o PEC e-SUS APS (integracao_pec.js)', () =
             const lista = [
                 {
                     id: '101',
-                    nome: 'ANA CELIA SILVA LESSA',
-                    cns: '704600127493222',
+                    nome: 'PACIENTE FICTICIA ALFA',
+                    cns: '700000000000001',
                     cpf: '11122233344',
-                    dataNascimento: '1961-05-12',
+                    dataNascimento: '1981-01-01',
                     ativo: true,
                     faleceu: false
                 },
                 {
                     id: '102',
-                    nome: 'OUTRA PACIENTE',
+                    nome: 'OUTRA PACIENTE FICTICIA',
                     cns: '700000000000000',
                     cpf: '99988877766',
                     dataNascimento: '1980-01-01',
@@ -125,12 +125,12 @@ describe('Módulo de Integração com o PEC e-SUS APS (integracao_pec.js)', () =
                 }
             ];
 
-            const porCns = selecionarMelhorCidadao(lista, { cpfCns: '704600127493222' });
+            const porCns = selecionarMelhorCidadao(lista, { cpfCns: '700000000000001' });
             assert.equal(porCns.id, '101');
 
             const porNomeEData = selecionarMelhorCidadao(lista, {
-                nome: 'Ana Célia Silva Lessa',
-                nascimento: '12/05/1961'
+                nome: 'Paciente Fictícia Alfa',
+                nascimento: '01/01/1981'
             });
             assert.equal(porNomeEData.id, '101');
         });
@@ -263,12 +263,12 @@ describe('Módulo de Integração com o PEC e-SUS APS (integracao_pec.js)', () =
         test('enriquecerPacientesComPec() deve buscar telefone e endereço no Cadastro Individual do PEC', async () => {
             const mockCliente = {
                 async buscarContatoPaciente(p) {
-                    if (p.cpf === '704600127493222') {
+                    if (p.cpf === '700000000000001') {
                         return {
                             encontrado: true,
                             idPec: '5501',
                             telefone: '77988776655',
-                            endereco: 'Rua Eva Peron, Nº 268 - Bairro: Vila América - Vitória da Conquista'
+                            endereco: 'Rua Fictícia de Teste, Nº 100 - Bairro: Bairro Teste - Município Teste'
                         };
                     }
                     return { encontrado: false };
@@ -277,9 +277,9 @@ describe('Módulo de Integração com o PEC e-SUS APS (integracao_pec.js)', () =
 
             const entrada = [
                 {
-                    nome: 'ANA CELIA SILVA LESSA',
-                    cpf: '704600127493222',
-                    nascimento: '12/05/1961',
+                    nome: 'PACIENTE FICTICIA ALFA',
+                    cpf: '700000000000001',
+                    nascimento: '01/01/1981',
                     telefone: '77900000000',
                     endereco: ''
                 },
@@ -301,7 +301,7 @@ describe('Módulo de Integração com o PEC e-SUS APS (integracao_pec.js)', () =
             assert.equal(resultado.pacientes[0].telefone, '77988776655');
             assert.equal(
                 resultado.pacientes[0].endereco,
-                'Rua Eva Peron, Nº 268 - Bairro: Vila América - Vitória da Conquista'
+                'Rua Fictícia de Teste, Nº 100 - Bairro: Bairro Teste - Município Teste'
             );
             assert.equal(resultado.pacientes[1].telefone, '77911112222');
             assert.equal(resultado.pacientes[1].endereco, 'Endereço Original');

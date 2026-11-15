@@ -238,6 +238,8 @@
                             <select id="criterioOrdenacao" onchange="aplicarOrdenacao()" class="p-2 border border-slate-200 rounded-xl outline-none bg-slate-50 hover:bg-white focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm font-medium text-slate-700">
                                 <option value="dataResultado:desc" selected>Data do Laudo (Mais recente)</option>
                                 <option value="dataResultado:asc">Data do Laudo (Mais antigo)</option>
+                                <option value="dataColeta:desc">Data da Coleta (Mais recente)</option>
+                                <option value="dataColeta:asc">Data da Coleta (Mais antiga)</option>
                                 <option value="prioridade:desc">Prioridade Clínica (Maior risco)</option>
                                 <option value="nascimento:asc">Data de Nascimento (Mais velha)</option>
                                 <option value="nascimento:desc">Data de Nascimento (Mais nova)</option>
@@ -279,6 +281,7 @@
                             <tr>
                                 <th class="px-6 py-4">Paciente / CNS</th>
                                 <th class="px-6 py-4">Data de Nascimento</th>
+                                <th class="px-6 py-4">Data da Coleta</th>
                                 <th class="px-6 py-4">Data do Laudo</th>
                                 <th class="px-6 py-4">Contato / Endereço</th>
                                 <th class="px-6 py-4">Status / Resultado</th>
@@ -317,6 +320,10 @@
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Data de Nascimento</label>
                         <input type="text" id="nascimento" required placeholder="DD/MM/AAAA" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 uppercase">Data da Coleta (Opcional)</label>
+                        <input type="text" id="dataColeta" placeholder="DD/MM/AAAA" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 uppercase">Data do Laudo (Opcional)</label>
@@ -397,6 +404,10 @@
                 <div>
                     <label class="text-xs font-bold text-slate-600 uppercase">Data de Nascimento</label>
                     <input type="text" id="edit-nascimento" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase">Data da Coleta</label>
+                    <input type="text" id="edit-dataColeta" placeholder="DD/MM/AAAA" class="mt-1 w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 uppercase">Data do Laudo</label>

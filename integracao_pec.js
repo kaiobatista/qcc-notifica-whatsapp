@@ -1,4 +1,13 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+const executandoEmTeste =
+    Boolean(process.env.NODE_TEST_CONTEXT) ||
+    process.execArgv.includes('--test') ||
+    process.argv.some((arg) => arg.endsWith('.test.js'));
+
+if (!executandoEmTeste) {
+    dotenv.config();
+}
 
 const URL_PADRAO_PEC = 'https://esus.vca.ba.wmsaude.com.br/gestaoCadastros/cadastro-individual';
 

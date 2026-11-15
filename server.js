@@ -1,7 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import pino from 'pino';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import crypto from 'crypto';
 import { createRequire } from 'module';
@@ -9,9 +10,25 @@ import { fileURLToPath } from 'url';
 import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import jwt from 'jsonwebtoken';
 import cron from 'node-cron';
-import { automatizarPesquisaLaudo } from './integracao.js'; 
-import { analisarLaudos } from './analisar_laudos.js'; 
-import { enriquecerPacientesComPec } from './integracao_pec.js'; 
+import { automatizarPesquisaLaudo } from './integracao.js';
+import { analisarLaudos } from './analisar_laudos.js';
+import { enriquecerPacientesComPec } from './integracao_pec.js';
+
+const executandoEmTeste =
+    Boolean(process.env.NODE_TEST_CONTEXT) ||
+    process.execArgv.includes('--test') ||
+    process.argv.some((arg) => arg.endsWith('.test.js'));
+
+if (!executandoEmTeste) {
+    dotenv.config();
+} else {
+    if (!/^[a-fA-F0-9]{64}$/.test(process.env.SECRET_KEY || '')) {
+        process.env.SECRET_KEY = crypto.randomBytes(32).toString('hex');
+    }
+    if (!process.env.SENHA_PAINEL) {
+        process.env.SENHA_PAINEL = `teste_efemero_${crypto.randomBytes(12).toString('hex')}`;
+    }
+}
 
 const require = createRequire(import.meta.url);
 const QRCode = require('qrcode-terminal/vendor/QRCode');
@@ -49,7 +66,9 @@ app.use((req, res, next) => {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-let caminhoArquivoPacientes = path.join(__dirname, 'pacientes.json');
+let caminhoArquivoPacientes = executandoEmTeste
+    ? path.join(os.tmpdir(), `pacientes_test_init_${process.pid}.json`)
+    : path.join(__dirname, 'pacientes.json');
 
 if (!/^[a-fA-F0-9]{64}$/.test(process.env.SECRET_KEY || '')) {
     console.error('CRITICAL ERROR: SECRET_KEY must be a 64-character hexadecimal string in .env.');
@@ -101,14 +120,14 @@ export function criptografar(texto) {
 export function descriptografar(texto) {
     // Se estiver vazio ou não for string, retorna vazio
     if (!texto || typeof texto !== 'string') return "";
-    
+
     // Regex que verifica se o formato é EXATAMENTE o da nossa criptografia 
     // (32 letras/números hexadecimais + ':' + restante hexadecimal)
     const regexCriptografia = /^[a-f0-9]{32}:[a-f0-9]+$/;
-    
+
     if (!regexCriptografia.test(texto)) {
         // Se não passar no teste rigoroso, significa que é um texto puro legado do banco antigo.
-        return texto; 
+        return texto;
     }
 
     try {
@@ -152,6 +171,7 @@ export function descriptografarPaciente(paciente) {
         nascimento: descriptografar(paciente.nascimento),
         cpf: descriptografar(paciente.cpf),
         endereco: descriptografar(paciente.endereco),
+        dataColeta: descriptografar(paciente.dataColeta) || '',
         dataResultado: descriptografar(paciente.dataResultado) || '',
         conclusao: conclusaoLimpa,
         observacoes: descriptografar(paciente.observacoes) || '',
@@ -209,7 +229,7 @@ export function converterDataBrParaTimestamp(dataStr) {
 
 export function ordenarPacientes(lista, criterio = 'dataResultado', ordem) {
     if (!Array.isArray(lista)) return [];
-    const criterioNormalizado = ['dataResultado', 'nascimento', 'nome', 'status', 'cadastro', 'prioridade'].includes(criterio)
+    const criterioNormalizado = ['dataResultado', 'dataColeta', 'nascimento', 'nome', 'status', 'cadastro', 'prioridade'].includes(criterio)
         ? criterio
         : 'dataResultado';
     const ordemPadrao = (criterioNormalizado === 'nome' || criterioNormalizado === 'status') ? 'asc' : 'desc';
@@ -226,7 +246,7 @@ export function ordenarPacientes(lista, criterio = 'dataResultado', ordem) {
             return tsB - tsA;
         }
 
-        if (criterioNormalizado === 'dataResultado' || criterioNormalizado === 'nascimento') {
+        if (criterioNormalizado === 'dataResultado' || criterioNormalizado === 'dataColeta' || criterioNormalizado === 'nascimento') {
             const tsA = converterDataBrParaTimestamp(a[criterioNormalizado]);
             const tsB = converterDataBrParaTimestamp(b[criterioNormalizado]);
 
@@ -327,6 +347,10 @@ export function deduplicarPacientes(listaCriptografada) {
             existente.dataResultado = atual.dataResultado;
             origExistente.dataResultado = criptografar(atual.dataResultado);
         }
+        if ((usarLaudoAtual && atual.dataColeta) || (!existente.dataColeta && atual.dataColeta)) {
+            existente.dataColeta = atual.dataColeta;
+            origExistente.dataColeta = criptografar(atual.dataColeta);
+        }
         if ((usarLaudoAtual && atual.conclusao) || (!existente.conclusao && atual.conclusao)) {
             existente.conclusao = atual.conclusao;
             origExistente.conclusao = criptografar(atual.conclusao);
@@ -369,7 +393,7 @@ export function deduplicarPacientes(listaCriptografada) {
 }
 
 let pacientes = [];
-if (fs.existsSync(caminhoArquivoPacientes)) {
+if (!executandoEmTeste && fs.existsSync(caminhoArquivoPacientes)) {
     try {
         const brutos = JSON.parse(fs.readFileSync(caminhoArquivoPacientes, 'utf-8'));
         pacientes = deduplicarPacientes(brutos);
@@ -538,7 +562,7 @@ export async function iniciarWhatsApp() {
                     sock = null;
                     try {
                         fs.rmSync(pastaAuth, { recursive: true, force: true });
-                    } catch {}
+                    } catch { }
                     const t = setTimeout(() => iniciarWhatsApp(), 2000);
                     if (typeof t.unref === 'function') t.unref();
                 } else if (statusCode === DisconnectReason.timedOut && !sock?.user) {
@@ -610,7 +634,7 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/cadastrar-paciente', verificarToken, (req, res) => {
-    const { nome, numero, nascimento, cpf, endereco, unidade, conclusao, dataResultado, observacoes } = req.body;
+    const { nome, numero, nascimento, cpf, endereco, unidade, conclusao, dataColeta, dataResultado, observacoes } = req.body;
 
     const novo = {
         id: Date.now(),
@@ -621,6 +645,7 @@ app.post('/cadastrar-paciente', verificarToken, (req, res) => {
         endereco: criptografar(endereco),
         unidade: unidade || 'USF Vila América',
         conclusao: conclusao ? criptografar(conclusao) : '',
+        dataColeta: dataColeta ? criptografar(dataColeta) : '',
         dataResultado: dataResultado ? criptografar(dataResultado) : '',
         observacoes: observacoes ? criptografar(observacoes) : '',
         status: "Pendente",
@@ -670,7 +695,7 @@ app.post('/whatsapp/reconectar', verificarToken, async (req, res) => {
         if (sock && typeof sock.end === 'function') {
             try {
                 sock.end();
-            } catch {}
+            } catch { }
         }
         sock = null;
         ultimoQrCode = null;
@@ -680,7 +705,7 @@ app.post('/whatsapp/reconectar', verificarToken, async (req, res) => {
         if (novaSessao) {
             try {
                 fs.rmSync(pastaAuth, { recursive: true, force: true });
-            } catch {}
+            } catch { }
         }
 
         iniciarWhatsApp();
@@ -750,10 +775,9 @@ export async function dispararMensagemPaciente(p) {
 
     const jid = `${numeroLimpo}@s.whatsapp.net`;
     const nome = descriptografar(p.nome);
-    const conclusao = descriptografar(p.conclusao);
 
     const msgPergunta = `Olá, esse é o número de contato da ${p.unidade}. Você é *${nome}*?\n[0] - Não\n[1] - Sim`;
-    const msgFinal = `Olá, ${nome}! 🌸 O resultado do seu exame preventivo já está disponível na **${p.unidade}**. ✅\n\nConclusão: ${conclusao || 'Verificar na unidade'}.\n\nPara continuarmos cuidando da sua saúde, compareça à unidade. 💙`;
+    const msgFinal = `Olá, *${nome}*! 🌸\n\nInformamos que o resultado do seu exame preventivo já está disponível na *${p.unidade}*. ✅\n\nPara continuarmos cuidando da sua saúde, pedimos que compareça à unidade. 💙`;
 
     aguardandoConfirmacao.set(jid, {
         idPaciente: p.id,
@@ -785,7 +809,7 @@ export async function executarFluxoCompletoSemanal({
     console.log('\n[⚙️ INTEGRAÇÃO] Iniciando varredura semanal no SISCAN (6 últimos meses)...');
 
     const nomeArquivoPdf = await buscarLaudo();
-    
+
     if (!nomeArquivoPdf) {
         console.log('[⚙️ INTEGRAÇÃO] A varredura foi concluída, mas nenhum laudo foi gerado.');
         return [];
@@ -834,6 +858,7 @@ export async function executarFluxoCompletoSemanal({
     for (const pacienteExtraido of listaParaCadastro) {
         const docNovo = (pacienteExtraido.cartaoSUS || pacienteExtraido.cpf || '').trim();
         const nomeNovo = (pacienteExtraido.nome || 'Desconhecido').trim();
+        const dataColNova = (pacienteExtraido.dataColeta || '').trim();
         const dataResNova = (pacienteExtraido.dataResultado || '').trim();
 
         // Evita duplicação de registros sensíveis para a mesma paciente (mesmo CNS/CPF ou mesmo nome normalizado)
@@ -859,6 +884,9 @@ export async function executarFluxoCompletoSemanal({
             if (docNormNovo) {
                 pacientes[idxExistente].cpf = criptografar(docNormNovo);
             }
+            if (dataColNova) {
+                pacientes[idxExistente].dataColeta = criptografar(dataColNova);
+            }
             if (dataResNova) {
                 pacientes[idxExistente].dataResultado = criptografar(dataResNova);
             }
@@ -873,11 +901,12 @@ export async function executarFluxoCompletoSemanal({
             id: Date.now() + Math.floor(Math.random() * 1000),
             nome: criptografar(nomeNovo),
             numero: criptografar(pacienteExtraido.telefone || ''),
-            nascimento: criptografar(pacienteExtraido.nascimento || ''), 
+            nascimento: criptografar(pacienteExtraido.nascimento || ''),
             cpf: criptografar(docNovo),
             endereco: criptografar(pacienteExtraido.endereco || ''),
             unidade: process.env.SISCAN_UNIDADE_PADRAO || 'USF Principal',
             conclusao: criptografar(pacienteExtraido.conclusao || ''),
+            dataColeta: criptografar(dataColNova),
             dataResultado: criptografar(dataResNova),
             status: "Pendente",
             dataCadastro: new Date().toLocaleString()
@@ -1054,6 +1083,7 @@ app.post('/importar-pdf-laudos', verificarToken, async (req, res) => {
         for (const pacienteExtraido of listaParaCadastro) {
             const docNovo = (pacienteExtraido.cartaoSUS || pacienteExtraido.cpf || '').trim();
             const nomeNovo = (pacienteExtraido.nome || 'Desconhecido').trim();
+            const dataColNova = (pacienteExtraido.dataColeta || '').trim();
             const dataResNova = (pacienteExtraido.dataResultado || '').trim();
 
             const docNormNovo = normalizarDocumentoComparacao(docNovo);
@@ -1078,6 +1108,9 @@ app.post('/importar-pdf-laudos', verificarToken, async (req, res) => {
                 if (docNormNovo) {
                     pacientes[idxExistente].cpf = criptografar(docNormNovo);
                 }
+                if (dataColNova) {
+                    pacientes[idxExistente].dataColeta = criptografar(dataColNova);
+                }
                 if (dataResNova) {
                     pacientes[idxExistente].dataResultado = criptografar(dataResNova);
                 }
@@ -1097,6 +1130,7 @@ app.post('/importar-pdf-laudos', verificarToken, async (req, res) => {
                 endereco: criptografar(pacienteExtraido.endereco || ''),
                 unidade: process.env.SISCAN_UNIDADE_PADRAO || 'USF Vila América',
                 conclusao: criptografar(pacienteExtraido.conclusao || ''),
+                dataColeta: criptografar(dataColNova),
                 dataResultado: criptografar(dataResNova),
                 status: "Pendente",
                 dataCadastro: new Date().toLocaleString()
@@ -1159,7 +1193,7 @@ app.delete('/pacientes/:id', verificarToken, (req, res) => {
 
 app.put('/editar-paciente/:id', verificarToken, (req, res) => {
     const { id } = req.params;
-    const { nome, numero, nascimento, cpf, endereco, unidade, status, observacoes, conclusao, dataResultado } = req.body;
+    const { nome, numero, nascimento, cpf, endereco, unidade, status, observacoes, conclusao, dataColeta, dataResultado } = req.body;
 
     const index = pacientes.findIndex(p => p.id == id);
 
@@ -1175,6 +1209,7 @@ app.put('/editar-paciente/:id', verificarToken, (req, res) => {
             ...(status ? { status } : {}),
             ...(observacoes !== undefined ? { observacoes: observacoes ? criptografar(observacoes) : '' } : {}),
             ...(conclusao !== undefined ? { conclusao: conclusao ? criptografar(conclusao) : '' } : {}),
+            ...(dataColeta !== undefined ? { dataColeta: dataColeta ? criptografar(dataColeta) : '' } : {}),
             ...(dataResultado !== undefined ? { dataResultado: dataResultado ? criptografar(dataResultado) : '' } : {})
         };
 
@@ -1184,11 +1219,6 @@ app.put('/editar-paciente/:id', verificarToken, (req, res) => {
         res.status(404).json({ error: "Paciente não encontrada" });
     }
 });
-
-const executandoEmTeste =
-    Boolean(process.env.NODE_TEST_CONTEXT) ||
-    process.execArgv.includes('--test') ||
-    process.argv.some((arg) => arg.endsWith('.test.js'));
 
 if (!executandoEmTeste) {
     // --- AGENDAMENTO SEMANAL (CRON) ---
